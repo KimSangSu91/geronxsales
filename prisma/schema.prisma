@@ -1,0 +1,649 @@
+// 늘케어 고객관리 시스템 — Prisma 스키마 (v0.2: 문의 병합 상태·체크리스트 메모 제거)
+// 기준: 기능정의서 v1.1 / 데이터모델.md
+// 금액은 모두 공급가(원, Int). VAT 포함 금액은 화면에서 계산해 표시
+// 낙관적 잠금: 편집 가능한 테이블은 version 컬럼으로 저장 시 충돌 감지
+
+// Prisma 7 기준: DB 접속 URL은 prisma.config.ts에서 지정
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────────────────── Enums ─────────────────────────
+
+enum UserRole {
+  ADMIN // 관리자
+  MEMBER // 일반
+}
+
+enum CustomerStatus {
+  INQUIRY // 문의접수
+  PENDING // 진행대기
+  ONBOARDING // 도입준비
+  TRIAL // 체험중
+  ACTIVE // 사용중
+  ENDED // 계약종료
+  TERMINATED // 계약해지
+  NOT_CONVERTED // 미전환
+  OTHER // 기타
+}
+
+enum FacilityType {
+  NURSING_HOME // 노인요양시설
+  GROUP_HOME // 공동생활가정
+  DAY_CARE // 주야간보호
+  HOME_CARE // 재가센터
+  OTHER // 기타(직접입력)
+}
+
+enum InboundChannel {
+  GOOGLE_FORM
+  EMAIL
+  PHONE
+  REFERRAL // 소개
+  OTHER
+}
+
+enum ContactRole {
+  DIRECTOR // 원장
+  NURSING // 간호
+  ADMIN_BILLING // 행정·정산
+  OTHER
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER // 계좌이체
+  CMS
+  CARD
+  OTHER
+}
+
+enum AccountType {
+  ADMIN // 관리자 (기록용)
+  NURSE // 간호
+  CAREGIVER // 요양보호사
+  OTHER
+}
+
+enum AccountStatus {
+  IN_USE
+  INACTIVE
+}
+
+enum BillingTiming {
+  PREPAID // 선불
+  POSTPAID // 후불
+}
+
+enum ContractOrigin {
+  NEW // 신규
+  RENEWAL // 수동 갱신
+  AUTO_RENEWAL // 미조치 자동연장
+  MIGRATION // 엑셀 이관
+}
+
+enum ContractState {
+  CURRENT // 현재 계약
+  PAST // 이전 계약
+  VOID // 취소됨(자동연장 후 '계약 종료로 변경' 시)
+}
+
+enum ChargeType {
+  ONE_TIME // 일시
+  MONTHLY // 월
+}
+
+enum DeviceKind {
+  BAND
+  HUB
+  CHARGER
+  ADAPTER
+  OTHER
+}
+
+enum OptionCategory {
+  TABLET
+  TV
+  OTHER
+}
+
+enum ExtraDeviceReason {
+  LOST // 분실
+  BROKEN // 파손
+  EXPANSION // 증설
+  OTHER
+}
+
+enum TrialResult {
+  IN_PROGRESS
+  CONVERTED // 계약 전환
+  NOT_CONVERTED // 미전환
+}
+
+enum InvoiceStatus {
+  BEFORE // 청구 전
+  BILLED // 청구 완료
+  PAID // 입금 확인
+  UNPAID // 미납
+}
+
+enum ProcessMethod {
+  MANUAL
+  CMS
+}
+
+enum ChecklistKind {
+  ONBOARDING // 도입
+  CLOSING // 회수·종료
+}
+
+enum ClosureType {
+  NOT_CONVERTED // 미전환(체험 후)
+  ENDED // 계약종료
+  TERMINATED // 계약해지
+}
+
+enum DocumentSlot {
+  CONTRACT // 계약서 (계약 건별)
+  DEVICE_RECEIPT // 디바이스 인수증
+  BIZ_REGISTRATION // 사업자등록증
+  BANKBOOK // 통장사본
+  DRAWING // 도면
+  RESIDENT_LIST // 입소자 명단
+  TAX_INVOICE // 세금계산서 (청구 건별)
+  ETC // 기타 자료
+}
+
+enum EtcCategory {
+  INSTALL_PHOTO // 설치 사진
+  OTHER
+}
+
+enum HistoryKind {
+  AUTO
+  MANUAL
+}
+
+enum ActivityType {
+  MEETING
+  CALL
+  EMAIL
+  VISIT
+  OTHER
+}
+
+enum InquiryStatus {
+  NEW // 미처리
+  CONVERTED // 고객사로 전환
+  DISMISSED // 제외
+}
+
+enum AlertType {
+  RENEWAL_CHECK // 갱신 확인 필요
+  RENEWAL_CANCELLED // 갱신 취소 예정
+  AUTO_RENEWED_UNCONFIRMED // 자동연장 미승인
+  PENDING_STALE // 진행대기 장기
+  TRIAL_ENDING // 체험 종료 확인 필요
+  ONBOARDING_DELAYED // 도입 지연
+  RECOVERY_INCOMPLETE // 장비 미회수
+  INQUIRY_UNHANDLED // 미처리 문의
+  INVOICE_UNBILLED // 청구 미처리
+  INVOICE_UNPAID // 미납
+  OWNER_INACTIVE // 담당자 재배정 필요
+}
+
+enum AlertLevel {
+  WARNING // 임박(주황)
+  DANGER // 경과(빨강)
+  INFO // 회색
+}
+
+// ───────────────────────── 사용자 ─────────────────────────
+
+model User {
+  id            String    @id @db.Uuid // = Supabase auth.users.id
+  email         String    @unique // 로그인 ID, 변경 불가
+  name          String
+  phone         String?
+  role          UserRole  @default(MEMBER)
+  isActive      Boolean   @default(true) // 삭제 없음, 비활성화만
+  deactivatedAt DateTime?
+  alertsSeenAt  DateTime? // 이 시각 이후 생성된 알림 = 새 알림
+  historyPanelCollapsed Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  loginLogs       LoginLog[]
+  ownedCustomers  Customer[]  @relation("CustomerOwner")
+  histories       History[]
+  documents       Document[]
+  checklistDone   ChecklistEntry[]
+}
+
+model LoginLog {
+  id        String   @id @default(cuid())
+  userId    String?  @db.Uuid // 실패 시 계정 미확인일 수 있음
+  user      User?    @relation(fields: [userId], references: [id])
+  email     String
+  success   Boolean
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ───────────────────────── 고객사 ─────────────────────────
+
+model Customer {
+  id     String         @id @default(cuid())
+  no     Int            @unique @default(autoincrement()) // 화면 표시 번호
+  name   String
+  code   String?        @unique // 도메인키. 입력 후 변경 불가(앱에서 제어)
+  status CustomerStatus @default(INQUIRY)
+  statusReason String? // 해지·미전환·기타 사유
+  statusChangedAt DateTime @default(now())
+  endedOn      DateTime? @db.Date // 계약종료·해지일
+
+  facilityType      FacilityType
+  facilityTypeOther String?
+  region            String
+  address           String?
+  capacity          Int? // 정원
+  ownerId           String        @db.Uuid // 내부 담당자
+  owner             User          @relation("CustomerOwner", fields: [ownerId], references: [id])
+  inboundChannel    InboundChannel?
+  referrer          String? // 소개처
+  memo              String?
+
+  // 사업자 정보
+  bizName  String?
+  bizNo    String?
+  bizCeo   String?
+
+  // 정산 정보
+  billingDay       Int? // 매월 N일
+  paymentMethod    PaymentMethod?
+  taxInvoice       Boolean?
+  taxInvoiceEmail  String?
+  cmsMemberNo      String?
+  cmsEnabled       Boolean @default(false)
+
+  // 설치 환경
+  floors          Int?
+  rooms           Int?
+  wifiSsid        String?
+  wifiPasswordEnc String? // AES-GCM 암호화 값
+  networkMemo     String?
+
+  // 서비스 운영
+  serviceUrl String?
+
+  // 도입 일정
+  meetingDate DateTime? @db.Date
+  installDate DateTime? @db.Date // 설치(예정)일
+
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contacts        FacilityContact[]
+  accounts        ServiceAccount[]
+  contracts       Contract[]
+  trials          Trial[]
+  options         OptionProduct[]
+  extraDevices    ExtraDevice[]
+  invoices        Invoice[]
+  checklist       ChecklistEntry[]
+  closures        Closure[]
+  documents       Document[]
+  histories       History[]
+  inquiries       Inquiry[]
+  alerts          Alert[]
+
+  @@index([status])
+  @@index([ownerId])
+}
+
+model FacilityContact {
+  id         String      @id @default(cuid())
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  role       ContactRole?
+  title      String? // 직책
+  phone      String?
+  email      String?
+  memo       String?
+  isPrimary  Boolean     @default(false) // 대표 1명 (앱에서 보장)
+  version    Int         @default(1)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([customerId])
+}
+
+model ServiceAccount {
+  id            String        @id @default(cuid())
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  loginId       String        @unique
+  type          AccountType // 기록용
+  typeOther     String?
+  userName      String?
+  issuedOn      DateTime?     @db.Date
+  status        AccountStatus @default(IN_USE)
+  deactivatedOn DateTime?     @db.Date
+  passwordEnc   String? // 선택 입력, 암호화
+  memo          String?
+  isPrimary     Boolean       @default(false) // 대표 관리자 계정
+  version       Int           @default(1)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([customerId])
+}
+
+// ───────────────────────── 계약 · 비용 ─────────────────────────
+
+model Contract {
+  id            String         @id @default(cuid())
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  state         ContractState  @default(CURRENT) // 고객사당 CURRENT 1건 (앱에서 보장)
+  origin        ContractOrigin @default(NEW)
+  previousId    String?        @unique // 갱신 전 계약
+  previous      Contract?      @relation("Renewal", fields: [previousId], references: [id])
+  next          Contract?      @relation("Renewal")
+
+  contractDate  DateTime       @db.Date
+  startDate     DateTime       @db.Date
+  endDate       DateTime       @db.Date
+  contractUsers Int // 계약 인원
+  billingTiming BillingTiming  @default(POSTPAID)
+  autoRenew     Boolean        @default(true)
+
+  qtyHub        Int            @default(0)
+  qtyBand       Int            @default(0)
+  qtyCharger    Int            @default(0)
+  qtyAdapter    Int            @default(0)
+
+  // 갱신 처리
+  renewalCancelled      Boolean   @default(false) // 갱신 취소됨
+  renewalCancelReason   String?
+  autoRenewConfirmedAt  DateTime? // origin=AUTO_RENEWAL 승인 시각 (null이면 미승인 배지)
+
+  memo      String?
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  charges   ContractCharge[]
+  documents Document[]
+
+  @@index([customerId, state])
+  @@index([endDate])
+}
+
+model ContractCharge {
+  id           String     @id @default(cuid())
+  contractId   String
+  contract     Contract   @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  type         ChargeType
+  name         String // 가입비, 설치비, 월 이용료, 관리비 …
+  amount       Int // 공급가
+  isFree       Boolean    @default(false)
+  freeReason   String?
+  billingMonth DateTime?  @db.Date // 일시 비용의 청구월(해당 월 1일). 월 비용은 null
+  version      Int        @default(1)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([contractId])
+}
+
+model Trial {
+  id         String      @id @default(cuid())
+  customerId String
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  qtyHub     Int         @default(0)
+  qtyBand    Int         @default(0)
+  qtyCharger Int         @default(0)
+  qtyAdapter Int         @default(0)
+  result     TrialResult @default(IN_PROGRESS)
+  memo       String?
+  version    Int         @default(1)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([customerId])
+}
+
+model OptionProduct {
+  id            String         @id @default(cuid())
+  customerId    String
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  category      OptionCategory
+  categoryOther String?
+  productName   String // 제품명·모델
+  qty           Int
+  providedOn    DateTime       @db.Date
+  chargeType    ChargeType
+  amount        Int            @default(0)
+  isFree        Boolean        @default(false)
+  freeReason    String?
+  billingMonth  DateTime?      @db.Date // 일시일 때 청구월
+  memo          String?
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([customerId])
+}
+
+model ExtraDevice {
+  id           String            @id @default(cuid())
+  customerId   String
+  customer     Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind         DeviceKind
+  kindOther    String? // 기타 기기명
+  qty          Int
+  reason       ExtraDeviceReason
+  reasonOther  String?
+  providedOn   DateTime          @db.Date
+  amount       Int               @default(0)
+  isFree       Boolean           @default(false)
+  freeReason   String?
+  billingMonth DateTime?         @db.Date
+  memo         String?
+  version      Int               @default(1)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([customerId])
+}
+
+// ───────────────────────── 청구 ─────────────────────────
+
+model Invoice {
+  id             String        @id @default(cuid())
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  billingMonth   DateTime      @db.Date // 해당 월 1일
+  plannedAmount  Int // 생성 시점 예정 금액(공급가)
+  lineItems      Json // 생성 시점 내역 스냅샷 [{source, name, type, amount}]
+  adjustedAmount Int? // 수동 조정 금액
+  adjustReason   String?
+  status         InvoiceStatus @default(BEFORE)
+  issuedOn       DateTime?     @db.Date // 세금계산서 발행일
+  paidOn         DateTime?     @db.Date // 입금일
+  method         ProcessMethod @default(MANUAL)
+  cmsRef         String? // 2차: 효성CMS 출금 건 식별자
+  cmsResult      Json? // 2차: CMS 응답 원문
+  memo           String?
+  version        Int           @default(1)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  documents Document[] // 세금계산서
+
+  @@unique([customerId, billingMonth])
+  @@index([billingMonth, status])
+}
+
+// ───────────────────────── 체크리스트 ─────────────────────────
+
+model ChecklistItem {
+  id        String        @id @default(cuid())
+  kind      ChecklistKind
+  code      String        @unique // resident_info, recovery …
+  label     String
+  sortOrder Int
+  isActive  Boolean       @default(true) // 항목 추가·숨김 대비
+
+  entries ChecklistEntry[]
+}
+
+model ChecklistEntry {
+  id         String        @id @default(cuid())
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       ChecklistItem @relation(fields: [itemId], references: [id])
+  closureId  String? // 회수·종료 체크리스트일 때
+  closure    Closure?      @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  done       Boolean       @default(false)
+  doneAt     DateTime?
+  doneById   String?       @db.Uuid
+  doneBy     User?         @relation(fields: [doneById], references: [id])
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([customerId, itemId, closureId])
+}
+
+model Closure {
+  id          String       @id @default(cuid())
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type        ClosureType
+  recoveredOn DateTime?    @db.Date // 회수일
+  completedAt DateTime? // 전체 항목 완료 시각
+  createdAt   DateTime     @default(now())
+
+  entries  ChecklistEntry[]
+  recovery RecoveryLine[]
+
+  @@index([customerId])
+}
+
+model RecoveryLine {
+  id            String     @id @default(cuid())
+  closureId     String
+  closure       Closure    @relation(fields: [closureId], references: [id], onDelete: Cascade)
+  kind          DeviceKind // OTHER = 옵션상품 등
+  label         String? // 기타 품목명
+  providedQty   Int
+  recoveredQty  Int        @default(0)
+  missingReason String? // 분실·파손·기타
+}
+
+// ───────────────────────── 문서 ─────────────────────────
+
+model Document {
+  id          String       @id @default(cuid())
+  customerId  String
+  customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  slot        DocumentSlot
+  etcCategory EtcCategory?
+  contractId  String? // 계약서
+  contract    Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  invoiceId   String? // 세금계산서
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  groupId     String // 같은 슬롯 파일의 버전 묶음
+  version     Int          @default(1)
+  isLatest    Boolean      @default(true)
+  fileName    String
+  storagePath String       @unique // Supabase Storage 경로
+  mimeType    String
+  size        Int
+  uploadedById String      @db.Uuid
+  uploadedBy  User         @relation(fields: [uploadedById], references: [id])
+  createdAt   DateTime     @default(now())
+
+  @@index([customerId, slot, isLatest])
+  @@index([groupId])
+}
+
+// ───────────────────────── 히스토리 ─────────────────────────
+
+model History {
+  id           String        @id @default(cuid())
+  customerId   String
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  kind         HistoryKind
+  event        String // AUTO: status_changed, contract_renewed, file_uploaded … / MANUAL: activity
+  activityType ActivityType? // MANUAL일 때
+  occurredOn   DateTime      @db.Date // MANUAL은 사용자가 고른 날짜
+  content      String
+  data         Json? // before/after 등 상세
+  actorId      String?       @db.Uuid // null = 시스템
+  actor        User?         @relation(fields: [actorId], references: [id])
+  editedAt     DateTime? // MANUAL 본인 수정 시
+  createdAt    DateTime      @default(now())
+
+  @@index([customerId, createdAt])
+}
+
+// ───────────────────────── 인바운드 ─────────────────────────
+
+model Inquiry {
+  id           String         @id @default(cuid())
+  channel      InboundChannel
+  externalId   String?        @unique // 구글폼 응답 ID 등 (중복 수신 방지)
+  receivedAt   DateTime
+  facilityName String?
+  contactName  String?
+  phone        String?
+  email        String?
+  region       String?
+  content      String?
+  raw          Json? // 원본 페이로드
+  status       InquiryStatus  @default(NEW)
+  customerId   String?
+  customer     Customer?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  handledById  String?        @db.Uuid
+  handledAt    DateTime?
+  createdAt    DateTime       @default(now())
+
+  @@index([status, receivedAt])
+}
+
+// ───────────────────────── 알림 · 설정 ─────────────────────────
+
+model Alert {
+  id         String     @id @default(cuid())
+  type       AlertType
+  level      AlertLevel
+  customerId String?
+  customer   Customer?  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  refId      String? // contractId / invoiceId / inquiryId …
+  message    String
+  dueDate    DateTime?  @db.Date
+  dedupeKey  String     @unique // type:refId:level — 같은 알림 중복 생성 방지
+  createdAt  DateTime   @default(now())
+  resolvedAt DateTime? // 조건 해소 시 자동 해제
+
+  @@index([resolvedAt, createdAt])
+}
+
+model Setting {
+  key       String   @id // alert.renewal_days, alert.pending_stale_days, file.max_mb …
+  value     Json
+  updatedAt DateTime @updatedAt
+}
