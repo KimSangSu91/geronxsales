@@ -38,6 +38,24 @@ export function diffDays(from: string, to: string): number {
   return Math.round((toDbDate(to).getTime() - toDbDate(from).getTime()) / 86_400_000);
 }
 
+// 'YYYY-MM-DD'(KST) 하루의 시작 시각 — DateTime 컬럼(등록일 등) 기간 검색용
+export function kstStartOfDay(value: string): Date {
+  if (!isDateString(value)) throw new Error(`잘못된 날짜: ${value}`);
+  return new Date(`${value}T00:00:00+09:00`);
+}
+
+// D-day 표시: 남으면 "D-50", 당일 "D-Day", 지나면 "D+3"
+export function dDayLabel(target: string, today: string = todayKst()): string {
+  const diff = diffDays(today, target);
+  if (diff === 0) return "D-Day";
+  return diff > 0 ? `D-${diff}` : `D+${-diff}`;
+}
+
+// 'YYYY-MM-DD' → 'YYYY.MM.DD'
+export function formatDate(value: string): string {
+  return value.replaceAll("-", ".");
+}
+
 // 시각(DateTime) → KST 'YYYY-MM-DD HH:mm' (로그인 기록·히스토리 표시용)
 export function formatDateTimeKst(value: Date): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
