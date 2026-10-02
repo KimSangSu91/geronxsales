@@ -20,6 +20,7 @@ import { CustomerStatusBadge } from "@/components/customer-status-badge";
 import { DatePicker } from "@/components/date-picker";
 import { Field, textareaClass } from "@/components/form";
 import type { CustomerStatus } from "@/generated/prisma/enums";
+import { addDays, addMonths, diffDays, isDateString } from "@/lib/date";
 import { CUSTOMER_STATUS_LABEL, CUSTOMER_STATUSES } from "@/lib/labels";
 import {
   emptyTransitionInput,
@@ -65,6 +66,13 @@ function missingHref(base: string, field: string): string {
       return `${base}?tab=info`;
   }
 }
+
+// 체험 기간 버튼: 시작일 포함 (10/1 + 2주 → 10/14, 10/1 + 1개월 → 10/31)
+const TRIAL_PERIODS: { label: string; end: (start: string) => string }[] = [
+  { label: "1주", end: (s) => addDays(s, 6) },
+  { label: "2주", end: (s) => addDays(s, 13) },
+  { label: "1개월", end: (s) => addDays(addMonths(s, 1), -1) },
+];
 
 // 상태별 안내 (기능정의서 1장 상태값 정의)
 const DESCRIPTION: Record<CustomerStatus, string> = {
@@ -113,7 +121,12 @@ export function StatusChanger({
     setErrors({});
     setServerMissing(null);
     // 종료일·해지일은 오늘을 기본값으로
-    setInput({ ...emptyTransitionInput(), endedOn: s === "ENDED" || s === "TERMINATED" ? today : "" });
+    // 종료일·해지일, 체험 시작일은 오늘을 기본값으로
+    setInput({
+      ...emptyTransitionInput(),
+      endedOn: s === "ENDED" || s === "TERMINATED" ? today : "",
+      trialStart: s === "TRIAL" ? today : "",
+    });
   };
 
   // 지금 정보로 판단한 누락 항목 (서버가 최신 기준으로 다시 확인)
@@ -231,6 +244,32 @@ export function StatusChanger({
                   <Field label="체험 종료일" required error={errors.trialEnd}>
                     <DatePicker value={input.trialEnd || undefined} onChange={(v) => set("trialEnd", v ?? "")} />
                   </Field>
+                  <div className="col-span-2 flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-xs text-muted-foreground">체험 기간</span>
+                    {TRIAL_PERIODS.map((p) => {
+                      const start = isDateString(input.trialStart) ? input.trialStart : today;
+                      const end = p.end(start);
+                      const active = input.trialStart === start && input.trialEnd === end;
+                      return (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setInput((x) => ({ ...x, trialStart: start, trialEnd: end }))}
+                          className={cn(
+                            "rounded-full border px-3 py-0.5 text-xs",
+                            active ? "border-foreground bg-foreground text-background" : "hover:bg-muted",
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                    {isDateString(input.trialStart) && isDateString(input.trialEnd) && input.trialEnd >= input.trialStart && (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        총 {diffDays(input.trialStart, input.trialEnd) + 1}일
+                      </span>
+                    )}
+                  </div>
                   <div className="col-span-2 flex flex-col gap-1.5">
                     <span className="text-sm font-medium">
                       체험 장비 수량<span className="ml-0.5 text-destructive">*</span>

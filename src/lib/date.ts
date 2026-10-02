@@ -33,6 +33,17 @@ export function addDays(value: string, days: number): string {
   return fromDbDate(d);
 }
 
+// 'YYYY-MM-DD' + n개월 (말일 보정: 1/31 + 1개월 → 2/28)
+export function addMonths(value: string, months: number): string {
+  const d = toDbDate(value);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
+  return fromDbDate(d);
+}
+
 // to - from (일 수)
 export function diffDays(from: string, to: string): number {
   return Math.round((toDbDate(to).getTime() - toDbDate(from).getTime()) / 86_400_000);
