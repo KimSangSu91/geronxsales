@@ -112,8 +112,7 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
         {/* 열 폭 고정: 긴 파일명·서류명이 표를 밀어내지 않도록 (넘치면 … 처리, 마우스를 올리면 전체 이름) */}
         <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col className="w-[18%]" />
-            <col className="w-14" />
+            <col className="w-[20%]" />
             <col className="w-24" />
             <col />
             <col className="w-32" />
@@ -122,7 +121,6 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
           <thead className="border-b bg-muted/30">
             <tr>
               <th className={th}>서류명</th>
-              <th className={th}>구분</th>
               <th className={th}>등록</th>
               <th className={th}>파일명</th>
               <th className={th}>업로드</th>
@@ -132,11 +130,9 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
           <tbody>
             {rows.map((r) => (
               <tr key={r.key} className="border-b last:border-0">
-                <td className={cn(td, "truncate font-medium")} title={r.name}>
+                <td className={cn(td, "truncate font-medium")} title={r.kind === "필수" ? `${r.name} (필수)` : r.name}>
                   {r.name}
-                </td>
-                <td className={td}>
-                  <span className={cn("text-xs", r.kind === "필수" ? "font-medium text-red-600" : "text-muted-foreground")}>{r.kind}</span>
+                  {r.kind === "필수" && <span className="ml-0.5 text-red-600">*</span>}
                 </td>
                 <td className={td}>
                   {r.doc ? (
