@@ -83,13 +83,14 @@ function EntryTable({
             </td>
             <td className={cn("px-3 py-2.5", e.done && "text-muted-foreground")}>{e.label}</td>
             <td className="px-3 py-1.5 tabular-nums">
-              {/* 완료일은 실제 완료한 날로 수정 가능 (오늘 이후 불가) */}
-              {e.done && e.doneOn ? (
+              {/* 완료일은 실제 완료한 날로 수정 가능 (오늘 이후 불가), 이관 데이터는 비어 있으면 입력 */}
+              {e.done ? (
                 <DatePicker
                   className="w-36"
-                  value={e.doneOn}
+                  value={e.doneOn ?? undefined}
                   max={today}
                   clearable={false}
+                  placeholder="완료일 입력"
                   onChange={(v) => v && v !== e.doneOn && onDateChange(e, v)}
                 />
               ) : (

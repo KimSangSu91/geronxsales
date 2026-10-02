@@ -65,9 +65,10 @@ export async function updateEntryDate(entryId: string, date: string): Promise<Re
   if (date > todayKst()) return { ok: false, message: "완료일은 오늘 이후로 지정할 수 없습니다." };
   const e = await prisma.checklistEntry.findUnique({ where: { id: entryId }, include: { item: true } });
   if (!e) return { ok: false, message: "항목을 찾을 수 없습니다. 새로고침하세요." };
-  if (!e.done || !e.doneAt) return { ok: false, message: "완료된 항목만 완료일을 바꿀 수 있습니다." };
+  if (!e.done) return { ok: false, message: "완료된 항목만 완료일을 바꿀 수 있습니다." };
 
-  const before = formatDateTimeKst(e.doneAt).slice(0, 10);
+  // 이관 데이터는 완료일이 비어 있을 수 있음
+  const before = e.doneAt ? formatDateTimeKst(e.doneAt).slice(0, 10) : "";
   if (before === date) return { ok: true };
 
   await prisma.$transaction(async (tx) => {
@@ -75,7 +76,7 @@ export async function updateEntryDate(entryId: string, date: string): Promise<Re
     await recordHistory(tx, {
       customerId: e.customerId,
       event: "checklist_date_changed",
-      content: `${e.closureId ? "회수·종료" : "도입"} 체크리스트 완료일 수정: ${e.item.label} ${formatDate(before)} → ${formatDate(date)}`,
+      content: `${e.closureId ? "회수·종료" : "도입"} 체크리스트 완료일 수정: ${e.item.label} ${before ? formatDate(before) : "-"} → ${formatDate(date)}`,
       actorId: user.id,
     });
   });
