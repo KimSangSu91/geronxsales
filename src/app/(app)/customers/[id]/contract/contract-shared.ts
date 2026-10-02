@@ -28,7 +28,7 @@ export function contractInputOf(c: {
   managementFee: number | null;
   managementFeeStart: Date | null;
   memo: string | null;
-}): ContractInput {
+}, billingDay: number | null = null): ContractInput {
   const price = (v: number | null) => (v === null ? "" : formatWon(v));
   return {
     contractDate: fromDbDate(c.contractDate),
@@ -50,6 +50,7 @@ export function contractInputOf(c: {
     installmentMonths: c.installmentMonths ? String(c.installmentMonths) : "",
     managementFee: c.managementFee ? formatWon(c.managementFee) : "",
     managementFeeStart: ym(c.managementFeeStart),
+    billingDay: billingDay ? String(billingDay) : "",
     memo: c.memo ?? "",
   };
 }

@@ -45,6 +45,7 @@ const LABELS: Partial<Record<keyof ContractInput, string>> = {
   installmentMonths: "분납 개월",
   managementFee: "월 관리비",
   managementFeeStart: "관리비 시작월",
+  billingDay: "청구일(매월)",
   memo: "메모",
 };
 const show = (k: keyof ContractInput, v: unknown) => {
@@ -97,7 +98,7 @@ const Won = ({ v, suffix = "" }: { v: number; suffix?: string }) => (
   <span className="tabular-nums">
     <b>{formatWon(v)}원</b>
     {suffix}
-    <span className="ml-1 text-xs text-muted-foreground">VAT {formatWon(withVat(v))}원</span>
+    <span className="text-muted-foreground"> · VAT {formatWon(withVat(v))}원</span>
   </span>
 );
 
@@ -125,6 +126,9 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
       </Item>
       <Item label="계약 인원">{c.contractUsers}명</Item>
       <Item label="자동연장">{c.autoRenew === "yes" ? `Y · ${renewText(c.autoRenewMonths)}씩 연장` : "N"}</Item>
+      <Item label="비용 청구일">
+        {c.billingDay ? `매월 ${c.billingDay}일` : <span className="text-red-600">미입력</span>}
+      </Item>
       <Item label="유형">
         <span className="font-medium">{CONTRACT_TYPE_LABEL[c.contractType]}</span>
       </Item>
@@ -150,9 +154,7 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
       ) : (
         <Item label="월 구독료" wide>
           <Won v={a.subscription} suffix=" /월" />
-          <span className="ml-2 text-muted-foreground">
-            밴드 {c.qtyBand} × {formatWon(price(c.unitPriceBand))}원
-          </span>
+          <span className="text-muted-foreground"> / 밴드 공급가 {formatWon(price(c.unitPriceBand))}원</span>
         </Item>
       )}
       <Item label="가입비" wide>
@@ -230,7 +232,18 @@ export function ContractForm({
         <Field label="계약 인원" required error={errors.contractUsers}>
           <Input inputMode="numeric" value={form.contractUsers} onChange={(e) => set({ contractUsers: e.target.value })} placeholder="명" aria-invalid={!!errors.contractUsers} />
         </Field>
-        <Field label="자동연장" required error={errors.autoRenew ?? errors.autoRenewMonths} className="sm:col-span-2">
+        <Field
+          label="비용 청구일 (매월)"
+          error={errors.billingDay}
+          hint={<span className="text-xs text-muted-foreground">기본정보 정산 정보의 청구일과 같은 값</span>}
+        >
+          <div className="flex items-center gap-1.5">
+            <Input inputMode="numeric" value={form.billingDay} onChange={(e) => set({ billingDay: e.target.value })} placeholder="1~31" aria-invalid={!!errors.billingDay} />
+            <span className="shrink-0 text-sm text-muted-foreground">일</span>
+          </div>
+        </Field>
+        <div />
+        <Field label="자동연장" required error={errors.autoRenew ?? errors.autoRenewMonths} className="sm:col-span-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"

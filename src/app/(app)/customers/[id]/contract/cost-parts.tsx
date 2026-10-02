@@ -51,8 +51,9 @@ export function CostTable({
   addDisabledReason?: string;
   readOnly?: boolean;
 }) {
-  const th = "px-2 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground";
-  const td = "px-2 py-2.5 align-middle";
+  // 첫·마지막 칸은 카드 제목과 같은 좌우 여백(px-5)
+  const th = "px-2 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground first:pl-5 last:pr-5";
+  const td = "px-2 py-2.5 align-middle first:pl-5 last:pr-5";
   return (
     <section className="rounded-lg border bg-background">
       <div className="flex items-center justify-between border-b px-5 py-3">
@@ -68,14 +69,14 @@ export function CostTable({
         {/* 가로 스크롤 없이 화면 폭에 맞춤: 열 폭 고정, 긴 글자는 … (마우스를 올리면 전체) */}
         <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col className="w-[17%]" />
-            <col className="w-[17%]" />
+            <col className="w-[18%]" />
+            <col className="w-[16%]" />
             <col className="w-10" />
             <col className="w-[20%]" />
             <col className="w-10" />
             <col className="w-[15%]" />
             <col />
-            {!readOnly && <col className="w-[68px]" />}
+            {!readOnly && <col className="w-[84px]" />}
           </colgroup>
           <thead className="border-b bg-muted/30">
             <tr>

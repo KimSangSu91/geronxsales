@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma/client";
 import { requireUser } from "@/lib/auth";
 import {
   contractDataOf,
@@ -78,6 +79,7 @@ const CONTRACT_LABELS: Partial<Record<keyof ContractInput, string>> = {
   installmentMonths: "분납 개월",
   managementFee: "월 관리비",
   managementFeeStart: "관리비 시작월",
+  billingDay: "청구일(매월)",
   memo: "메모",
 };
 
@@ -89,7 +91,17 @@ function contractShow(k: keyof ContractInput, v: unknown): string {
   if (k === "purchasePayment") return PURCHASE_PAYMENT_LABEL[s as ContractInput["purchasePayment"]];
   if (k === "autoRenew") return s === "yes" ? "Y" : "N";
   if (k === "purchaseBillingMonth" || k === "managementFeeStart") return s.replace("-", ".");
+  if (k === "billingDay") return `${s}일`;
   return s.length > 30 ? `${s.slice(0, 30)}…` : s;
+}
+
+// 비용 청구일 = 고객사 정산 정보의 청구일 (한 값만 보관) — 바뀌었으면 같은 트랜잭션에서 고객사에 저장
+async function saveBillingDay(tx: Prisma.TransactionClient, customerId: string, billingDay: string) {
+  const next = billingDay.trim() ? Number(billingDay) : null;
+  const c = await tx.customer.findUniqueOrThrow({ where: { id: customerId }, select: { billingDay: true } });
+  if (c.billingDay === next) return;
+  // 기본정보 정산 섹션을 동시에 편집 중이면 그쪽 저장이 충돌로 막히도록 version 증가
+  await tx.customer.update({ where: { id: customerId }, data: { billingDay: next, version: { increment: 1 } } });
 }
 
 // 계약 금액 한 줄 요약 (히스토리)
@@ -113,6 +125,7 @@ export async function createContract(customerId: string, input: ContractInput): 
     .join(" · ");
   await prisma.$transaction(async (tx) => {
     await tx.contract.create({ data: { customerId, state: "CURRENT", origin: "NEW", ...d } });
+    await saveBillingDay(tx, customerId, input.billingDay);
     await recordHistory(tx, {
       customerId,
       event: "contract_created",
@@ -131,7 +144,13 @@ export async function updateContract(contractId: string, version: number, input:
   const errors = validateContract(input);
   if (Object.keys(errors).length) return { ok: false, errors, message: CHECK };
 
-  const changes = diff(contractInputOf(current), contractInputOf({ ...current, ...contractDataOf(input) }), CONTRACT_LABELS, contractShow);
+  const customer = await prisma.customer.findUniqueOrThrow({ where: { id: current.customerId }, select: { billingDay: true } });
+  const changes = diff(
+    contractInputOf(current, customer.billingDay),
+    { ...contractInputOf({ ...current, ...contractDataOf(input) }), billingDay: input.billingDay.trim() },
+    CONTRACT_LABELS,
+    contractShow,
+  );
   if (!changes.length) return { ok: true };
 
   try {
@@ -139,6 +158,7 @@ export async function updateContract(contractId: string, version: number, input:
       await saveWithVersion(() =>
         tx.contract.updateMany({ where: { id: contractId, version }, data: { ...contractDataOf(input), version: { increment: 1 } } }),
       );
+      await saveBillingDay(tx, current.customerId, input.billingDay);
       await recordHistory(tx, {
         customerId: current.customerId,
         event: "contract_updated",
@@ -149,7 +169,8 @@ export async function updateContract(contractId: string, version: number, input:
   } catch (e) {
     if (e instanceof ConflictError) {
       const latest = await prisma.contract.findUniqueOrThrow({ where: { id: contractId } });
-      return { ok: false, conflict: { ...(await lastEditor(current.customerId)), latest: contractInputOf(latest), version: latest.version } };
+      const cu = await prisma.customer.findUniqueOrThrow({ where: { id: current.customerId }, select: { billingDay: true } });
+      return { ok: false, conflict: { ...(await lastEditor(current.customerId)), latest: contractInputOf(latest, cu.billingDay), version: latest.version } };
     }
     throw e;
   }

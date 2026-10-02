@@ -43,6 +43,7 @@ export type ContractInput = {
   installmentMonths: string;
   managementFee: string; // 월 관리비 (선택)
   managementFeeStart: string; // 'YYYY-MM'
+  billingDay: string; // 비용 청구일 (매월 N일) — 고객사 정산 정보의 청구일과 같은 값
   memo: string;
 };
 
@@ -66,6 +67,7 @@ export const emptyContract = (): ContractInput => ({
   installmentMonths: "",
   managementFee: "",
   managementFeeStart: "",
+  billingDay: "",
   memo: "",
 });
 
@@ -109,6 +111,7 @@ export function validateContract(c: ContractInput): FieldErrors {
   }
 
   if (c.joinFee.trim() && Number.isNaN(parseAmount(c.joinFee))) e.joinFee = "금액을 숫자로 입력하세요.";
+  if (c.billingDay.trim() && !isInt(c.billingDay, 1, 31)) e.billingDay = "1~31 사이 숫자를 입력하세요.";
 
   if (c.managementFee.trim()) {
     const fee = parseAmount(c.managementFee);

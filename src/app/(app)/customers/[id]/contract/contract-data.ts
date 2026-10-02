@@ -12,7 +12,7 @@ import {
 } from "./contract-shared";
 
 export async function getContractTabData(customerId: string, status: string): Promise<ContractTabData> {
-  const [contracts, options, extras, trial, excel] = await Promise.all([
+  const [contracts, options, extras, trial, excel, customer] = await Promise.all([
     prisma.contract.findMany({
       where: { customerId },
       orderBy: { startDate: "desc" },
@@ -30,6 +30,7 @@ export async function getContractTabData(customerId: string, status: string): Pr
       where: { customerId, content: { startsWith: "엑셀 계약 정보" } },
       select: { content: true },
     }),
+    prisma.customer.findUnique({ where: { id: customerId }, select: { billingDay: true } }),
   ]);
   const renewedHistory = await prisma.history.findFirst({
     where: { customerId, event: "contract_renewed" },
@@ -44,7 +45,7 @@ export async function getContractTabData(customerId: string, status: string): Pr
     version: c.version,
     state: c.state,
     origin: c.origin,
-    input: contractInputOf(c),
+    input: contractInputOf(c, customer?.billingDay ?? null),
     charges: c.charges.map((x) => ({ id: x.id, version: x.version, input: chargeInputOf(x) })),
     contractDoc: c.documents[0] ?? null,
     renewal: {
