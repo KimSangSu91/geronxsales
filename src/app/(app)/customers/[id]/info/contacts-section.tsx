@@ -20,6 +20,7 @@ import { useUnsavedChanges } from "@/components/unsaved-changes";
 import type { ContactRole } from "@/generated/prisma/enums";
 import { validateContact, type FieldErrors } from "@/lib/customer-input";
 import { CONTACT_ROLE_LABEL } from "@/lib/labels";
+import { PRIMARY_CONTACT_REQUIRED_MESSAGE, wouldLeaveNoPrimary } from "@/lib/status-rules";
 import { cn } from "@/lib/utils";
 import {
   addContact,
@@ -55,12 +56,17 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
   const [deleting, setDeleting] = useState<ContactRow | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const primaryIds = contacts.filter((c) => c.isPrimary).map((c) => c.id);
+  // 이 담당자의 대표 지정을 풀면 대표가 0명이 되는지 / 대표가 아예 없어 새 담당자를 대표로 해야 하는지
+  const isLastPrimary = (id?: string) => !!id && wouldLeaveNoPrimary(primaryIds, id);
+  const mustBePrimary = primaryIds.length === 0 || isLastPrimary(editing?.id);
+
   useUnsavedChanges("contacts", !!editing && JSON.stringify(form) !== JSON.stringify(editing.base));
 
   const open = (c?: ContactRow) => {
     const base: ContactPayload = c
       ? { name: c.name, phone: c.phone, role: c.role, title: c.title, email: c.email, memo: c.memo, isPrimary: c.isPrimary }
-      : EMPTY;
+      : { ...EMPTY, isPrimary: primaryIds.length === 0 };
     setEditing({ id: c?.id, version: c?.version, base });
     setForm(base);
     setErrors({});
@@ -72,7 +78,10 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
     setErrors(found);
     if (Object.keys(found).length) return setMessage("입력 내용을 확인하세요.");
     startTransition(async () => {
-      const r = editing?.id ? await updateContact(editing.id, editing.version!, form) : await addContact(customerId, form);
+      const payload = { ...form, isPrimary: form.isPrimary || mustBePrimary };
+      const r = editing?.id
+        ? await updateContact(editing.id, editing.version!, payload)
+        : await addContact(customerId, payload);
       if (r.ok) {
         setEditing(null);
         toast.success(editing?.id ? "담당자를 수정했습니다" : "담당자를 추가했습니다");
@@ -136,10 +145,14 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
                     disabled={pending}
                     title={c.isPrimary ? "대표 담당자 해제" : "대표 담당자로 지정"}
                     onClick={() =>
-                      run(
-                        () => togglePrimaryContact(c.id, !c.isPrimary),
-                        c.isPrimary ? `${c.name}님을 대표 담당자에서 해제했습니다` : `${c.name}님을 대표 담당자로 지정했습니다`,
-                      )
+                      c.isPrimary && isLastPrimary(c.id)
+                        ? toast.error(PRIMARY_CONTACT_REQUIRED_MESSAGE)
+                        : run(
+                            () => togglePrimaryContact(c.id, !c.isPrimary),
+                            c.isPrimary
+                              ? `${c.name}님을 대표 담당자에서 해제했습니다`
+                              : `${c.name}님을 대표 담당자로 지정했습니다`,
+                          )
                     }
                     className="inline-flex rounded p-1 hover:bg-muted"
                   >
@@ -174,7 +187,9 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
                     onClick={() =>
                       contacts.length <= 1
                         ? toast.error("시설 담당자는 1명 이상 있어야 합니다. 다른 담당자를 먼저 추가하세요.")
-                        : setDeleting(c)
+                        : c.isPrimary && isLastPrimary(c.id)
+                          ? toast.error(PRIMARY_CONTACT_REQUIRED_MESSAGE)
+                          : setDeleting(c)
                     }
                   >
                     <Trash2 />
@@ -237,12 +252,18 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
               <input
                 type="checkbox"
                 className="size-4 accent-primary"
-                checked={form.isPrimary}
+                checked={form.isPrimary || mustBePrimary}
+                disabled={mustBePrimary}
                 onChange={(e) => setForm({ ...form, isPrimary: e.target.checked })}
               />
               대표 담당자로 지정
-              <span className="text-xs text-muted-foreground">실무·주 소통 담당자 (여러 명 지정 가능)</span>
+              <span className="text-xs text-muted-foreground">
+                {mustBePrimary
+                  ? "대표 담당자는 1명 이상 필요해서 해제할 수 없습니다"
+                  : "실무·주 소통 담당자 (여러 명 지정 가능, 1명 이상 필수)"}
+              </span>
             </label>
+            {errors.isPrimary && <p className="text-xs text-destructive sm:col-span-2">{errors.isPrimary}</p>}
           </div>
           <DialogFooter>
             {message && <p className="mr-auto self-center text-sm text-destructive">{message}</p>}

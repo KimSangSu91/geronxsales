@@ -21,14 +21,14 @@ export function missingCustomerFields(values: Partial<Record<string, string>>): 
   return missing;
 }
 
-// 등록(진행대기 — 직접 등록·인바운드 문의 전환 공통): 시설명 · 시설 유형 · 지역 · 내부 담당자 · 시설 담당자 1명(이름·연락처)
+// 등록(진행대기 — 직접 등록·인바운드 문의 전환 공통): 시설명 · 시설 유형 · 지역 · 내부 담당자 · 시설 담당자 1명(이름·연락처) · 대표 담당자 1명 이상
 export type RegistrationFacts = {
   name: string;
   facilityType: string;
   facilityTypeOther: string;
   region: string;
   ownerId: string;
-  contacts: { name: string; phone: string }[];
+  contacts: { name: string; phone: string; isPrimary: boolean }[];
 };
 
 export function missingForRegistration(f: RegistrationFacts): MissingItem[] {
@@ -36,7 +36,16 @@ export function missingForRegistration(f: RegistrationFacts): MissingItem[] {
   const missing = missingCustomerFields(fields);
   if (!contacts.some((c) => !blank(c.name) && !blank(c.phone)))
     missing.push({ field: "contacts", label: "시설 담당자 1명(이름·연락처)" });
+  else if (!contacts.some((c) => c.isPrimary && !blank(c.name)))
+    missing.push({ field: "contacts", label: "대표 담당자 1명 이상" });
   return missing;
+}
+
+// 대표 담당자(실무·주 소통 담당자)는 고객사마다 1명 이상 — 해제·삭제로 0명이 되면 안 됨
+export const PRIMARY_CONTACT_REQUIRED_MESSAGE = "대표 담당자는 1명 이상 지정해야 합니다. 다른 담당자를 먼저 대표로 지정하세요.";
+
+export function wouldLeaveNoPrimary(primaryIdsNow: string[], targetId: string): boolean {
+  return primaryIdsNow.length === 1 && primaryIdsNow[0] === targetId;
 }
 
 // 시설 담당자 1명 필수 항목 (추가·수정 시)

@@ -318,7 +318,7 @@ model FacilityContact {
   phone      String?
   email      String?
   memo       String?
-  isPrimary  Boolean     @default(false) // 대표 담당자 = 실무·주 소통 담당자 표시 (여러 명 가능, 시설 대표자와 무관)
+  isPrimary  Boolean     @default(false) // 대표 담당자 = 실무·주 소통 담당자 표시 (여러 명 가능·1명 이상 필수(앱에서 보장), 시설 대표자와 무관)
   version    Int         @default(1)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt

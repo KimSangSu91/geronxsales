@@ -17,6 +17,7 @@ import { formatDate, fromDbDate, todayKst, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_TYPE_LABEL, CONTACT_ROLE_LABEL } from "@/lib/labels";
 import { ConflictError, saveWithVersion } from "@/lib/optimistic";
+import { PRIMARY_CONTACT_REQUIRED_MESSAGE, wouldLeaveNoPrimary } from "@/lib/status-rules";
 import { prisma } from "@/lib/prisma";
 import {
   customerValues,
@@ -213,8 +214,13 @@ export async function revealWifiPassword(customerId: string): Promise<{ ok: bool
 
 // ───────── 시설 담당자 ─────────
 
-// 대표 담당자 = 실무·주 소통 담당자 표시 (시설 대표자와 무관, 여러 명 지정 가능)
+// 대표 담당자 = 실무·주 소통 담당자 표시 (시설 대표자와 무관, 여러 명 가능, 1명 이상 필수)
 export type ContactPayload = ContactInput;
+
+async function primaryIds(customerId: string) {
+  const rows = await prisma.facilityContact.findMany({ where: { customerId, isPrimary: true }, select: { id: true } });
+  return rows.map((r) => r.id);
+}
 
 function contactData(p: ContactPayload) {
   return {
@@ -270,7 +276,11 @@ export async function addContact(customerId: string, payload: ContactPayload): P
   if (Object.keys(errors).length) return { ok: false, errors, message: CHECK };
 
   await prisma.$transaction(async (tx) => {
-    const c = await tx.facilityContact.create({ data: { customerId, ...contactData(payload) } });
+    // 대표 담당자가 한 명도 없으면 새 담당자를 대표로 (대표 1명 이상 필수)
+    const primaries = await tx.facilityContact.count({ where: { customerId, isPrimary: true } });
+    const c = await tx.facilityContact.create({
+      data: { customerId, ...contactData(payload), isPrimary: payload.isPrimary || primaries === 0 },
+    });
     await recordHistory(tx, {
       customerId,
       event: "contact_added",
@@ -292,6 +302,12 @@ export async function updateContact(
 
   const errors = validateContact(payload, true);
   if (Object.keys(errors).length) return { ok: false, errors, message: CHECK };
+
+  if (current.isPrimary && !payload.isPrimary) {
+    if (wouldLeaveNoPrimary(await primaryIds(current.customerId), contactId)) {
+      return { ok: false, errors: { isPrimary: PRIMARY_CONTACT_REQUIRED_MESSAGE }, message: PRIMARY_CONTACT_REQUIRED_MESSAGE };
+    }
+  }
 
   const before = contactPayload(current);
   const after = contactPayload(contactData(payload));
@@ -336,6 +352,9 @@ export async function deleteContact(contactId: string): Promise<ActionResult<nev
   // 등록 필수 항목(시설 담당자 1명)을 유지하기 위해 마지막 1명은 삭제 불가
   const count = await prisma.facilityContact.count({ where: { customerId: c.customerId } });
   if (count <= 1) return { ok: false, message: "시설 담당자는 1명 이상 있어야 합니다. 다른 담당자를 먼저 추가하세요." };
+  if (c.isPrimary && wouldLeaveNoPrimary(await primaryIds(c.customerId), c.id)) {
+    return { ok: false, message: PRIMARY_CONTACT_REQUIRED_MESSAGE };
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.facilityContact.delete({ where: { id: contactId } });
@@ -355,6 +374,9 @@ export async function togglePrimaryContact(contactId: string, isPrimary: boolean
   const c = await prisma.facilityContact.findUnique({ where: { id: contactId } });
   if (!c) return { ok: false, message: "담당자를 찾을 수 없습니다. 새로고침하세요." };
   if (c.isPrimary === isPrimary) return { ok: true };
+  if (!isPrimary && wouldLeaveNoPrimary(await primaryIds(c.customerId), c.id)) {
+    return { ok: false, message: PRIMARY_CONTACT_REQUIRED_MESSAGE };
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.facilityContact.update({

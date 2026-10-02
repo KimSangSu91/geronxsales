@@ -141,7 +141,10 @@ export function validateCustomerInput(input: CustomerInput): FieldErrors {
   const errors = validateCustomerFields(fields);
 
   // 시설 담당자 1명 이상 (lib/status-rules.ts)
-  for (const m of missingForRegistration(input)) if (m.field === "contacts") errors.contacts = `${m.label}을(를) 입력하세요.`;
+  for (const m of missingForRegistration(input)) {
+    if (m.field !== "contacts") continue;
+    errors.contacts = m.label.startsWith("대표") ? "대표 담당자를 1명 이상 지정하세요." : `${m.label}을(를) 입력하세요.`;
+  }
 
   contacts.forEach((c, i) => {
     const filled = [c.name, c.phone, c.title, c.email, c.memo].some((v) => v.trim()) || c.role;
