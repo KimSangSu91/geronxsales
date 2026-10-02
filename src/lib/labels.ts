@@ -3,6 +3,7 @@ import type {
   ContactRole,
   CustomerStatus,
   FacilityType,
+  InboundChannel,
   PaymentMethod,
 } from "@/generated/prisma/enums";
 
@@ -33,6 +34,14 @@ export const CONTACT_ROLE_LABEL: Record<ContactRole, string> = {
   DIRECTOR: "원장",
   NURSING: "간호",
   ADMIN_BILLING: "행정·정산",
+  OTHER: "기타",
+};
+
+export const INBOUND_CHANNEL_LABEL: Record<InboundChannel, string> = {
+  GOOGLE_FORM: "구글폼",
+  EMAIL: "이메일",
+  PHONE: "전화",
+  REFERRAL: "소개",
   OTHER: "기타",
 };
 
