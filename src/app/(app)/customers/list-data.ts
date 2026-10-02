@@ -66,9 +66,10 @@ export async function getCustomerList(p: ListParams) {
         serviceUrl: true,
         createdAt: true,
         owner: { select: { name: true, isActive: true } },
+        // 대표 담당자(여러 명 가능) — 첫 번째만 표시하고 나머지는 "외 N명"
         contacts: {
           where: { isPrimary: true },
-          take: 1,
+          orderBy: { createdAt: "asc" },
           select: { name: true, role: true, phone: true },
         },
         contracts: {
@@ -112,6 +113,7 @@ export async function getCustomerList(p: ListParams) {
       createdAt: c.createdAt,
       owner: c.owner,
       primaryContact: c.contacts[0] ?? null,
+      primaryCount: c.contacts.length,
       endDate: contract ? fromDbDate(contract.endDate) : null,
       monthly,
     };

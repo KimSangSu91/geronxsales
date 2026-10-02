@@ -8,7 +8,7 @@ export async function getCustomerDetail(id: string) {
     where: { id },
     include: {
       owner: { select: { id: true, name: true, isActive: true } },
-      contacts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+      contacts: { orderBy: { createdAt: "asc" } },
       accounts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       contracts: {
         where: { state: "CURRENT" },

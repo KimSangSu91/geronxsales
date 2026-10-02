@@ -61,7 +61,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
   const base = `/customers/${c.id}`;
   const serviceUrl = c.serviceUrl && /^https?:\/\//i.test(c.serviceUrl) ? c.serviceUrl : null;
-  const primaryContact = c.contacts.find((x) => x.isPrimary) ?? c.contacts[0] ?? null;
+  const primaryContacts = c.contacts.filter((x) => x.isPrimary);
   const primaryAccount = c.accounts.find((a) => a.isPrimary) ?? null;
 
   // 안내 배너 (화면정의서 3-3) — 나머지 배너는 해당 기능 구현 시 추가
@@ -153,11 +153,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           accountsHref={`${base}?tab=info#section-accounts`}
           data={{
             earlyStage: c.status === "PENDING" || c.status === "NOT_CONVERTED",
-            primaryContact: primaryContact && {
-              name: primaryContact.name,
-              role: primaryContact.role,
-              phone: primaryContact.phone,
-            },
+            primaryContacts: primaryContacts.map((x) => ({ name: x.name, role: x.role, phone: x.phone })),
             owner: { name: c.owner.name, isActive: c.owner.isActive },
             contract: detail.contract,
             monthly: detail.monthly,

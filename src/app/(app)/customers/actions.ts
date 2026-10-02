@@ -43,9 +43,8 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
   const owner = await prisma.user.findUnique({ where: { id: input.ownerId } });
   if (!owner?.isActive) return { errors: { ownerId: "활성 사용자를 선택하세요." }, message: "입력 내용을 확인하세요." };
 
-  // 내용이 있는 담당자만 저장, 대표는 1명(선택 없으면 첫 번째)
+  // 내용이 있는 담당자만 저장 (대표 담당자는 여러 명 가능)
   const contacts = input.contacts.filter((c) => c.name.trim());
-  const primaryIndex = Math.max(0, contacts.findIndex((c) => c.isPrimary));
 
   let customerId: string;
   try {
@@ -78,14 +77,14 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
           networkMemo: text(input.networkMemo),
           serviceUrl: text(input.serviceUrl),
           contacts: {
-            create: contacts.map((c, i) => ({
+            create: contacts.map((c) => ({
               name: c.name.trim(),
               phone: c.phone.trim() ? normalizePhone(c.phone) : null,
               role: c.role || null,
               title: text(c.title),
               email: text(c.email),
               memo: text(c.memo),
-              isPrimary: i === primaryIndex,
+              isPrimary: c.isPrimary,
             })),
           },
         },

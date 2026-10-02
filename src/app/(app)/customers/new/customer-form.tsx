@@ -162,16 +162,12 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
   };
 
   const setContact = (index: number, patch: Partial<ContactInput>) => {
-    const contacts = input.contacts.map((c, i) => {
-      if (patch.isPrimary) return i === index ? { ...c, ...patch } : { ...c, isPrimary: false };
-      return i === index ? { ...c, ...patch } : c;
-    });
+    const contacts = input.contacts.map((c, i) => (i === index ? { ...c, ...patch } : c));
     set("contacts", contacts);
   };
 
   const removeContact = (index: number) => {
     const contacts = input.contacts.filter((_, i) => i !== index);
-    if (contacts.length && !contacts.some((c) => c.isPrimary)) contacts[0] = { ...contacts[0], isPrimary: true };
     set("contacts", contacts.length ? contacts : [emptyContact(true)]);
   };
 
@@ -346,19 +342,18 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
       </Section>
 
       {/* 시설 담당자 */}
-      <Section title="시설 담당자" description="1명 이상 필수 · 대표 1명 지정" open>
+      <Section title="시설 담당자" description="1명 이상 필수 · 대표 담당자(실무·주 소통 담당자)는 여러 명 지정 가능" open>
         <div className="flex flex-col gap-3">
           {errors.contacts && <p className="text-sm text-destructive">{errors.contacts}</p>}
           {input.contacts.map((c, i) => (
             <div key={i} className="rounded-md border bg-muted/20 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <label className="flex items-center gap-2 text-sm">
+                <label className="flex items-center gap-2 text-sm" title="실무·주 소통 담당자 (여러 명 지정 가능)">
                   <input
-                    type="radio"
-                    name="primaryContact"
+                    type="checkbox"
                     className="size-4 accent-primary"
                     checked={c.isPrimary}
-                    onChange={() => setContact(i, { isPrimary: true })}
+                    onChange={(e) => setContact(i, { isPrimary: e.target.checked })}
                   />
                   대표 담당자
                 </label>

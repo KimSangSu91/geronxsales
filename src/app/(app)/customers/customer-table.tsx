@@ -24,6 +24,7 @@ export type TableRow = {
   createdOn: string;
   owner: { name: string; isActive: boolean };
   primaryContact: { name: string; role: ContactRole | null; phone: string | null } | null;
+  primaryCount: number;
   endDate: string | null;
   monthly: number | null;
 };
@@ -107,6 +108,9 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                       {r.primaryContact.name}
                       {r.primaryContact.role && (
                         <span className="text-muted-foreground">({CONTACT_ROLE_LABEL[r.primaryContact.role]})</span>
+                      )}
+                      {r.primaryCount > 1 && (
+                        <span className="ml-1 text-xs text-muted-foreground">외 {r.primaryCount - 1}명</span>
                       )}
                     </p>
                     {r.primaryContact.phone && (

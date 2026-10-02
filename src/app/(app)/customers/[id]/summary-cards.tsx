@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export type SummaryData = {
   earlyStage: boolean; // 진행대기·미전환: 계약 카드 대신 유입 채널·최근 활동일
-  primaryContact: { name: string; role: ContactRole | null; phone: string | null } | null;
+  primaryContacts: { name: string; role: ContactRole | null; phone: string | null }[]; // 여러 명 가능
   owner: { name: string; isActive: boolean };
   contract: { endDate: string; contractUsers: number } | null;
   monthly: number | null;
@@ -36,12 +36,12 @@ const Empty = () => <span className="text-muted-foreground">-</span>;
 // 상세 상단 요약 카드 (화면정의서 3-4)
 export function SummaryCards({ data, accountsHref }: { data: SummaryData; accountsHref: string }) {
   const [showPhone, setShowPhone] = useState(false);
-  const pc = data.primaryContact;
+  const [first, ...rest] = data.primaryContacts;
 
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
       <Card label="대표 담당자">
-        {pc ? (
+        {first ? (
           <>
             <button
               type="button"
@@ -49,15 +49,18 @@ export function SummaryCards({ data, accountsHref }: { data: SummaryData; accoun
               className="truncate text-left font-medium hover:underline"
               title="연락처 보기"
             >
-              {pc.name}
-              {pc.role && <span className="font-normal text-muted-foreground">({CONTACT_ROLE_LABEL[pc.role]})</span>}
+              {first.name}
+              {first.role && <span className="font-normal text-muted-foreground">({CONTACT_ROLE_LABEL[first.role]})</span>}
+              {rest.length > 0 && <span className="ml-1 text-xs font-normal text-muted-foreground">외 {rest.length}명</span>}
             </button>
-            {showPhone && (
-              <p className="flex items-center gap-0.5 text-xs text-muted-foreground tabular-nums">
-                {pc.phone ?? "연락처 없음"}
-                {pc.phone && <CopyButton text={pc.phone} label="연락처 복사" />}
-              </p>
-            )}
+            {showPhone &&
+              data.primaryContacts.map((c, i) => (
+                <p key={i} className="flex items-center gap-0.5 text-xs text-muted-foreground tabular-nums">
+                  {rest.length > 0 && <span className="mr-1">{c.name}</span>}
+                  {c.phone ?? "연락처 없음"}
+                  {c.phone && <CopyButton text={c.phone} label="연락처 복사" />}
+                </p>
+              ))}
           </>
         ) : (
           <Empty />

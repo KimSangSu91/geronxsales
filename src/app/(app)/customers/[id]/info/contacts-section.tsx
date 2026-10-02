@@ -24,15 +24,15 @@ import { cn } from "@/lib/utils";
 import {
   addContact,
   deleteContact,
-  setPrimaryContact,
+  togglePrimaryContact,
   updateContact,
   type Conflict,
   type ContactPayload,
 } from "./actions";
 
-export type ContactRow = ContactPayload & { id: string; isPrimary: boolean; version: number };
+export type ContactRow = ContactPayload & { id: string; version: number };
 
-const EMPTY: ContactPayload = { name: "", phone: "", role: "", title: "", email: "", memo: "" };
+const EMPTY: ContactPayload = { name: "", phone: "", role: "", title: "", email: "", memo: "", isPrimary: false };
 const LABELS: Record<keyof ContactPayload, string> = {
   name: "이름",
   phone: "연락처",
@@ -40,9 +40,10 @@ const LABELS: Record<keyof ContactPayload, string> = {
   title: "직책",
   email: "이메일",
   memo: "메모",
+  isPrimary: "대표 담당자",
 };
-const show = (k: keyof ContactPayload, v: string) =>
-  !v ? "-" : k === "role" ? CONTACT_ROLE_LABEL[v as ContactRole] : v;
+const show = (k: keyof ContactPayload, v: string | boolean) =>
+  k === "isPrimary" ? (v ? "지정" : "해제") : !v ? "-" : k === "role" ? CONTACT_ROLE_LABEL[v as ContactRole] : String(v);
 
 export function ContactsSection({ customerId, contacts }: { customerId: string; contacts: ContactRow[] }) {
   // 편집 모달: null = 닫힘, id 없음 = 추가
@@ -57,7 +58,9 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
   useUnsavedChanges("contacts", !!editing && JSON.stringify(form) !== JSON.stringify(editing.base));
 
   const open = (c?: ContactRow) => {
-    const base = c ? { name: c.name, phone: c.phone, role: c.role, title: c.title, email: c.email, memo: c.memo } : EMPTY;
+    const base: ContactPayload = c
+      ? { name: c.name, phone: c.phone, role: c.role, title: c.title, email: c.email, memo: c.memo, isPrimary: c.isPrimary }
+      : EMPTY;
     setEditing({ id: c?.id, version: c?.version, base });
     setForm(base);
     setErrors({});
@@ -107,7 +110,7 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
         <table className="w-full min-w-[760px] text-sm">
           <thead className="border-b bg-muted/30">
             <tr>
-              <th className={cn(th, "w-12 text-center")}>대표</th>
+              <th className={cn(th, "w-12 text-center")} title="대표 담당자: 실무·주 소통 담당자 (여러 명 가능)">대표</th>
               <th className={th}>이름</th>
               <th className={th}>역할</th>
               <th className={th}>직책</th>
@@ -130,10 +133,15 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
                 <td className={cn(td, "text-center")}>
                   <button
                     type="button"
-                    disabled={c.isPrimary || pending}
-                    title={c.isPrimary ? "대표 담당자" : "대표로 지정"}
-                    onClick={() => run(() => setPrimaryContact(c.id), `${c.name}님을 대표 담당자로 지정했습니다`)}
-                    className="inline-flex rounded p-1 hover:bg-muted disabled:hover:bg-transparent"
+                    disabled={pending}
+                    title={c.isPrimary ? "대표 담당자 해제" : "대표 담당자로 지정"}
+                    onClick={() =>
+                      run(
+                        () => togglePrimaryContact(c.id, !c.isPrimary),
+                        c.isPrimary ? `${c.name}님을 대표 담당자에서 해제했습니다` : `${c.name}님을 대표 담당자로 지정했습니다`,
+                      )
+                    }
+                    className="inline-flex rounded p-1 hover:bg-muted"
                   >
                     <Star className={cn("size-4", c.isPrimary ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40")} />
                   </button>
@@ -164,7 +172,9 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
                     size="icon-sm"
                     title="삭제"
                     onClick={() =>
-                      c.isPrimary ? toast.error("대표 담당자는 삭제할 수 없습니다. 다른 대표를 먼저 지정하세요.") : setDeleting(c)
+                      contacts.length <= 1
+                        ? toast.error("시설 담당자는 1명 이상 있어야 합니다. 다른 담당자를 먼저 추가하세요.")
+                        : setDeleting(c)
                     }
                   >
                     <Trash2 />
@@ -223,6 +233,16 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
             <Field label="메모" className="sm:col-span-2">
               <Input value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} />
             </Field>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                checked={form.isPrimary}
+                onChange={(e) => setForm({ ...form, isPrimary: e.target.checked })}
+              />
+              대표 담당자로 지정
+              <span className="text-xs text-muted-foreground">실무·주 소통 담당자 (여러 명 지정 가능)</span>
+            </label>
           </div>
           <DialogFooter>
             {message && <p className="mr-auto self-center text-sm text-destructive">{message}</p>}
