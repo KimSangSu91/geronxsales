@@ -43,10 +43,5 @@ export const CLOSURE_TYPE_LABEL: Record<ClosureType, string> = {
   TERMINATED: "계약해지",
 };
 
-export const DEVICE_KIND_LABEL: Record<DeviceKind, string> = {
-  BAND: "밴드",
-  HUB: "허브",
-  CHARGER: "충전기",
-  ADAPTER: "어댑터",
-  OTHER: "기타",
-};
+// 기기 이름표는 lib/labels.ts로 이동 (계약·비용 탭과 공용)
+export { DEVICE_KIND_LABEL } from "@/lib/labels";

@@ -2,6 +2,11 @@
 import type {
   AccountStatus,
   ActivityType,
+  BillingTiming,
+  ChargeType,
+  DeviceKind,
+  ExtraDeviceReason,
+  OptionCategory,
   AccountType,
   ContactRole,
   CustomerStatus,
@@ -72,5 +77,38 @@ export const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
   CALL: "통화",
   EMAIL: "메일",
   VISIT: "방문",
+  OTHER: "기타",
+};
+
+// ───────── 계약·비용 ─────────
+
+export const BILLING_TIMING_LABEL: Record<BillingTiming, string> = {
+  PREPAID: "선불",
+  POSTPAID: "후불",
+};
+
+export const CHARGE_TYPE_LABEL: Record<ChargeType, string> = {
+  ONE_TIME: "일시",
+  MONTHLY: "월",
+};
+
+export const OPTION_CATEGORY_LABEL: Record<OptionCategory, string> = {
+  TABLET: "태블릿",
+  TV: "TV",
+  OTHER: "기타",
+};
+
+export const DEVICE_KIND_LABEL: Record<DeviceKind, string> = {
+  BAND: "밴드",
+  HUB: "허브",
+  CHARGER: "충전기",
+  ADAPTER: "어댑터",
+  OTHER: "기타",
+};
+
+export const EXTRA_REASON_LABEL: Record<ExtraDeviceReason, string> = {
+  LOST: "분실",
+  BROKEN: "파손",
+  EXPANSION: "증설",
   OTHER: "기타",
 };

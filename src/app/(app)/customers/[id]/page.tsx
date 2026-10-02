@@ -11,6 +11,8 @@ import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { getChecklistData } from "./checklist/checklist-data";
 import { ChecklistTab } from "./checklist/checklist-tab";
+import { getContractTabData } from "./contract/contract-data";
+import { ContractTab } from "./contract/contract-tab";
 import { getCustomerDetail } from "./detail-data";
 import { getStatusFacts } from "./status/status-data";
 import { StatusChanger } from "./status/status-changer";
@@ -34,7 +36,6 @@ type TabKey = (typeof TABS)[number]["key"];
 
 // 아직 만들지 않은 탭과 구현 단계
 const NOT_READY: Partial<Record<TabKey, string>> = {
-  contract: "2단계",
   billing: "3단계",
   documents: "2단계",
   devices: "2단계",
@@ -69,11 +70,12 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const today = todayKst();
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
-  const [recent, historyPage, statusFacts, checklist] = await Promise.all([
+  const [recent, historyPage, statusFacts, checklist, contractData] = await Promise.all([
     tab === "history" ? null : getRecentHistory(c.id, user.id),
     tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
     getStatusFacts(prisma, c.id),
     tab === "checklist" ? getChecklistData(c.id) : null,
+    tab === "contract" ? getContractTabData(c.id, c.status) : null,
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
@@ -205,6 +207,8 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           <div className="min-w-0 flex-1">
             {tab === "info" ? (
               <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
+            ) : tab === "contract" && contractData ? (
+              <ContractTab customerId={c.id} status={c.status} data={contractData} today={today} />
             ) : tab === "checklist" && checklist ? (
               <ChecklistTab customerId={c.id} data={checklist} today={today} />
             ) : tab === "history" && historyPage ? (

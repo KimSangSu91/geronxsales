@@ -16,6 +16,7 @@ import {
 import { formatDate, fromDbDate, todayKst, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_TYPE_LABEL, CONTACT_ROLE_LABEL } from "@/lib/labels";
+import { lastEditor } from "@/lib/last-editor";
 import { ConflictError, saveWithVersion } from "@/lib/optimistic";
 import { PRIMARY_CONTACT_REQUIRED_MESSAGE, wouldLeaveNoPrimary } from "@/lib/status-rules";
 import { prisma } from "@/lib/prisma";
@@ -40,16 +41,6 @@ const text = (v: string) => v.trim() || null;
 const int = (v: string) => (v.trim() ? Number(v) : null);
 const yesNo = (v: string) => (v === "" ? null : v === "yes");
 const short = (v: string) => (v.length > 30 ? `${v.slice(0, 30)}…` : v);
-
-// 충돌 모달용: 마지막으로 기록을 남긴 사람·시각 (모든 변경은 히스토리에 기록되므로 최신 히스토리 기준)
-async function lastEditor(customerId: string) {
-  const h = await prisma.history.findFirst({
-    where: { customerId },
-    orderBy: { createdAt: "desc" },
-    select: { createdAt: true, actor: { select: { name: true } } },
-  });
-  return { editorName: h?.actor?.name ?? "시스템", editedAt: (h?.createdAt ?? new Date()).toISOString() };
-}
 
 function done(customerId: string): ActionResult<never> {
   revalidatePath(`/customers/${customerId}`);
