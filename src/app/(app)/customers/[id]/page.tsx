@@ -17,6 +17,8 @@ import { ChecklistTab } from "./checklist/checklist-tab";
 import { getContractTabData } from "./contract/contract-data";
 import { ContractTab } from "./contract/contract-tab";
 import { getCustomerDetail } from "./detail-data";
+import { getDevicesData } from "./devices/devices-data";
+import { DevicesTab } from "./devices/devices-tab";
 import { getDocumentsData } from "./documents/documents-data";
 import { DocumentsTab } from "./documents/documents-tab";
 import { getStatusFacts } from "./status/status-data";
@@ -42,7 +44,6 @@ type TabKey = (typeof TABS)[number]["key"];
 // 아직 만들지 않은 탭과 구현 단계
 const NOT_READY: Partial<Record<TabKey, string>> = {
   billing: "3단계",
-  devices: "2단계",
 };
 
 // 처음 열리는 탭 (화면정의서 3-5) — 아직 없는 탭이면 기본정보
@@ -79,13 +80,14 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const openParam = typeof sp.open === "string" ? sp.open : undefined;
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
-  const [recent, historyPage, statusFacts, checklist, contractData, documentsData] = await Promise.all([
+  const [recent, historyPage, statusFacts, checklist, contractData, documentsData, devicesData] = await Promise.all([
     tab === "history" ? null : getRecentHistory(c.id, user.id),
     tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
     getStatusFacts(prisma, c.id),
     tab === "checklist" ? getChecklistData(c.id) : null,
     tab === "contract" ? getContractTabData(c.id, c.status) : null,
     tab === "documents" ? getDocumentsData(c.id) : null,
+    tab === "devices" ? getDevicesData(c.id, c.status) : null,
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
@@ -265,6 +267,8 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                 trialBadge={tBadge}
                 openDialog={openParam === "renewal" || openParam === "trial" ? openParam : undefined}
               />
+            ) : tab === "devices" && devicesData ? (
+              <DevicesTab customerId={c.id} data={devicesData} today={today} />
             ) : tab === "documents" && documentsData ? (
               <DocumentsTab customerId={c.id} data={documentsData} />
             ) : tab === "checklist" && checklist ? (
