@@ -110,7 +110,16 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
         <span className="text-xs text-muted-foreground">PDF·이미지만 · 항목당 파일 1개 · 최대 20MB</span>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
+        {/* 열 폭 고정: 긴 파일명·서류명이 표를 밀어내지 않도록 (넘치면 … 처리, 마우스를 올리면 전체 이름) */}
+        <table className="w-full min-w-[900px] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[16%]" />
+            <col className="w-[7%]" />
+            <col className="w-[10%]" />
+            <col />
+            <col className="w-[19%]" />
+            <col className="w-[250px]" />
+          </colgroup>
           <thead className="border-b bg-muted/30">
             <tr>
               <th className={th}>서류명</th>
@@ -124,7 +133,9 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
           <tbody>
             {rows.map((r) => (
               <tr key={r.key} className="border-b last:border-0">
-                <td className={cn(td, "font-medium")}>{r.name}</td>
+                <td className={cn(td, "truncate font-medium")} title={r.name}>
+                  {r.name}
+                </td>
                 <td className={td}>
                   <span className={cn("text-xs", r.kind === "필수" ? "font-medium text-red-600" : "text-muted-foreground")}>{r.kind}</span>
                 </td>
@@ -135,16 +146,17 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                     <span className={cn("text-xs", r.kind === "필수" ? "text-red-600" : "text-muted-foreground")}>○ 미등록</span>
                   )}
                 </td>
-                <td className={cn(td, "max-w-72")}>
+                <td className={td}>
                   {r.doc ? (
-                    <span className="block truncate" title={r.doc.fileName}>
-                      {r.doc.fileName} <span className="text-xs text-muted-foreground">{formatSize(r.doc.size)}</span>
+                    <span className="flex min-w-0 items-center gap-1.5" title={r.doc.fileName}>
+                      <span className="truncate">{r.doc.fileName}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{formatSize(r.doc.size)}</span>
                     </span>
                   ) : (
                     <span className="text-muted-foreground">-</span>
                   )}
                 </td>
-                <td className={cn(td, "text-xs whitespace-nowrap text-muted-foreground")}>
+                <td className={cn(td, "truncate text-xs text-muted-foreground")} title={r.doc ? `${r.doc.uploadedBy} · ${r.doc.uploadedAt}` : undefined}>
                   {r.doc ? `${r.doc.uploadedBy} · ${r.doc.uploadedAt}` : "-"}
                 </td>
                 <td className={cn(td, "text-right whitespace-nowrap")}>
