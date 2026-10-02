@@ -51,8 +51,8 @@ export function CostTable({
   addDisabledReason?: string;
   readOnly?: boolean;
 }) {
-  const th = "px-3 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground";
-  const td = "px-3 py-2.5 align-middle";
+  const th = "px-2 py-2 text-left text-xs font-medium whitespace-nowrap text-muted-foreground";
+  const td = "px-2 py-2.5 align-middle";
   return (
     <section className="rounded-lg border bg-background">
       <div className="flex items-center justify-between border-b px-5 py-3">
@@ -65,16 +65,17 @@ export function CostTable({
         )}
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] table-fixed text-sm">
+        {/* 가로 스크롤 없이 화면 폭에 맞춤: 열 폭 고정, 긴 글자는 … (마우스를 올리면 전체) */}
+        <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col className="w-[13%]" />
+            <col className="w-[17%]" />
+            <col className="w-[17%]" />
+            <col className="w-10" />
+            <col className="w-[20%]" />
+            <col className="w-10" />
             <col className="w-[15%]" />
-            <col className="w-[7%]" />
-            <col className="w-[19%]" />
-            <col className="w-[7%]" />
-            <col className="w-[14%]" />
             <col />
-            {!readOnly && <col className="w-[84px]" />}
+            {!readOnly && <col className="w-[68px]" />}
           </colgroup>
           <thead className="border-b bg-muted/30">
             <tr>
@@ -98,7 +99,7 @@ export function CostTable({
             )}
             {rows.map((r) => (
               <tr key={r.id} className="border-b last:border-0">
-                <td className={cn(td, "font-medium")}>
+                <td className={cn(td, "truncate font-medium")} title={r.item}>
                   {r.item}
                   {r.auto && <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground">{r.auto}</span>}
                 </td>
@@ -106,15 +107,17 @@ export function CostTable({
                   {r.detail || "-"}
                 </td>
                 <td className={cn(td, "tabular-nums")}>{r.qty || "-"}</td>
-                <td className={cn(td, "text-xs")}>{r.date || "-"}</td>
+                <td className={cn(td, "truncate text-xs")} title={r.date}>
+                  {r.date || "-"}
+                </td>
                 <td className={td}>{r.type}</td>
                 <td className={cn(td, "text-right tabular-nums")}>
                   {r.isFree ? (
                     <span className="text-muted-foreground">무상</span>
                   ) : (
                     <>
-                      <p>{formatWon(r.amount)}</p>
-                      <p className="text-xs text-muted-foreground">VAT {formatWon(withVat(r.amount))}</p>
+                      <p className="truncate">{formatWon(r.amount)}</p>
+                      <p className="truncate text-xs text-muted-foreground">VAT {formatWon(withVat(r.amount))}</p>
                     </>
                   )}
                 </td>

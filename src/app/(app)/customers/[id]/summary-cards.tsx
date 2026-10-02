@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
 import type { ContactRole } from "@/generated/prisma/enums";
-import { dDayLabel, formatDate } from "@/lib/date";
+import { dDayLabel, dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -91,7 +91,9 @@ export function SummaryCards({ data, accountsHref }: { data: SummaryData; accoun
             {data.contract ? (
               <span className="tabular-nums">
                 ~{formatDate(data.contract.endDate)}{" "}
-                <span className="text-xs text-muted-foreground">{dDayLabel(data.contract.endDate, data.today)}</span>
+                <span className="text-xs text-muted-foreground" title={`오늘 기준 ${dDayText(data.contract.endDate, data.today)}`}>
+                  {dDayLabel(data.contract.endDate, data.today)}
+                </span>
               </span>
             ) : (
               <Empty />

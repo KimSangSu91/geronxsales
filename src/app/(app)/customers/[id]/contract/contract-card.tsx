@@ -15,7 +15,7 @@ import { useUnsavedChanges } from "@/components/unsaved-changes";
 import { addMonthsYm, installmentAmount, purchaseTotal } from "@/lib/billing";
 import { AUTO_RENEW_PRESETS, emptyContract, parseAmount, validateContract, type ContractInput } from "@/lib/contract-input";
 import type { FieldErrors } from "@/lib/customer-input";
-import { addDays, addMonths, dDayLabel, formatDate } from "@/lib/date";
+import { addDays, addMonths, dDayText, formatDate } from "@/lib/date";
 import { CONTRACT_TYPE_LABEL, PURCHASE_PAYMENT_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -120,7 +120,7 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
       <Item label="기간">
         <span className="tabular-nums">
           {formatDate(c.startDate)} ~ {formatDate(c.endDate)}{" "}
-          {contract.state === "CURRENT" && <span className="text-xs text-muted-foreground">({dDayLabel(c.endDate, today)})</span>}
+          {contract.state === "CURRENT" && <span className="text-xs text-muted-foreground">({dDayText(c.endDate, today)})</span>}
         </span>
       </Item>
       <Item label="계약 인원">{c.contractUsers}명</Item>

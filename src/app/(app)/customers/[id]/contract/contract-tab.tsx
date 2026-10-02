@@ -19,7 +19,7 @@ import {
 } from "@/lib/contract-input";
 import { lineDateText, type CostLine } from "@/lib/billing";
 import type { BadgeKind } from "@/lib/renewal";
-import { dDayLabel, formatDate } from "@/lib/date";
+import { dDayText, formatDate } from "@/lib/date";
 import {
   CHARGE_TYPE_LABEL,
   DEVICE_KIND_LABEL,
@@ -149,7 +149,7 @@ function TrialCard({
           <dt className="w-20 shrink-0 text-muted-foreground">체험 기간</dt>
           <dd className="tabular-nums">
             {formatDate(trial.startDate)} ~ {formatDate(trial.endDate)}{" "}
-            <span className="text-xs text-muted-foreground">({dDayLabel(trial.endDate, today)})</span>
+            <span className="text-xs text-muted-foreground">({dDayText(trial.endDate, today)})</span>
           </dd>
         </div>
         <div className="flex gap-3">
@@ -435,7 +435,7 @@ export function ContractTab({
 
       {/* 비용 항목 */}
       <CostTable
-        title="비용 항목 (최종 정리)"
+        title="비용 항목"
         rows={[
           ...data.lines.filter((l) => l.source !== "MANUAL").map(lineRow),
           ...(contract?.charges ?? []).map((x) => chargeRow(x.id, x.input)),

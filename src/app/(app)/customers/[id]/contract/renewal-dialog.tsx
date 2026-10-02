@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { DatePicker } from "@/components/date-picker";
 import { Field, textareaClass } from "@/components/form";
 import type { FieldErrors } from "@/lib/customer-input";
-import { dDayLabel, formatDate } from "@/lib/date";
+import { dDayText, formatDate } from "@/lib/date";
 import { extendEnd, type BadgeKind } from "@/lib/renewal";
 import { cn } from "@/lib/utils";
 import type { ContractView } from "./contract-shared";
@@ -79,7 +79,7 @@ export function RenewalDialog({
         <DialogHeader>
           <DialogTitle>{view === "cancel" ? "계약 갱신 취소" : "계약 갱신 · 종료일 변경"}</DialogTitle>
           <DialogDescription>
-            현재 계약 {formatDate(c.startDate)} ~ {formatDate(c.endDate)} ({dDayLabel(c.endDate, today)})
+            현재 계약 {formatDate(c.startDate)} ~ {formatDate(c.endDate)} ({dDayText(c.endDate, today)})
           </DialogDescription>
         </DialogHeader>
 
