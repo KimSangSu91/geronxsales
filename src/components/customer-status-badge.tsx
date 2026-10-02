@@ -18,7 +18,7 @@ export function CustomerStatusBadge({ status }: { status: CustomerStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center rounded-full px-2 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-5 w-fit items-center rounded-full px-2 text-xs font-medium whitespace-nowrap",
         COLOR[status],
       )}
     >

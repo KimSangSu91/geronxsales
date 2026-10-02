@@ -104,17 +104,17 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
 
   return (
     <section className="rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <h3 className="font-semibold">문서</h3>
       </div>
       <div className="overflow-x-auto">
         {/* 열 폭 고정: 긴 파일명·서류명이 표를 밀어내지 않도록 (넘치면 … 처리, 마우스를 올리면 전체 이름) */}
-        <table className="w-full table-fixed text-sm">
+        <table className="data-table w-full table-fixed text-sm">
           <colgroup>
             <col className="w-[20%]" />
             <col className="w-24" />
             <col />
-            <col className="w-32" />
+            <col className="w-40" />
             <col className="w-48" />
           </colgroup>
           <thead className="border-b bg-muted/30">
@@ -160,15 +160,15 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                     </span>
                   ) : r.doc ? (
                     <>
-                      <Button variant="ghost" size="xs" onClick={() => downloadFile(r.doc!.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => downloadFile(r.doc!.id)}>
                         <Download />
                         다운
                       </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setReplacing(r)}>
+                      <Button variant="ghost" size="sm" onClick={() => setReplacing(r)}>
                         <Replace />
                         교체
                       </Button>
-                      <Button variant="ghost" size="xs" onClick={() => setDeleting(r)}>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleting(r)}>
                         <Trash2 />
                         삭제
                       </Button>
@@ -176,7 +176,7 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                   ) : r.disabledReason ? (
                     <span className="text-xs text-muted-foreground">{r.disabledReason}</span>
                   ) : (
-                    <Button variant="outline" size="xs" onClick={() => pick(r, false)} disabled={!!busy}>
+                    <Button variant="outline" size="sm" onClick={() => pick(r, false)} disabled={!!busy}>
                       <Upload />
                       업로드
                     </Button>

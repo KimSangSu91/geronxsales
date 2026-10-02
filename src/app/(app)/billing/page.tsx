@@ -87,7 +87,7 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
       </div>
 
       <section className="rounded-lg border bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
+        <div className="card-head flex-wrap">
           <h2 className="font-semibold">
             {month.replace("-", ".")} 청구 건 <span className="text-sm font-normal text-muted-foreground">{rows.length}건</span>
           </h2>

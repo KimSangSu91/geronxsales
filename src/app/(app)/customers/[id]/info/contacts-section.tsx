@@ -106,7 +106,7 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
 
   return (
     <section id="section-contacts" className="scroll-mt-20 rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <h3 className="font-semibold">
           시설 담당자 <span className="ml-1 text-sm font-normal text-muted-foreground">{contacts.length}명</span>
         </h3>
@@ -116,7 +116,7 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="data-table w-full min-w-[760px] text-sm">
           <thead className="border-b bg-muted/30">
             <tr>
               <th className={cn(th, "w-12 text-center")} title="대표 담당자: 실무·주 소통 담당자 (여러 명 가능)">대표</th>

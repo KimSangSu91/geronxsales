@@ -139,7 +139,7 @@ export function AccountsSection({
 
   return (
     <section id="section-accounts" className="scroll-mt-20 rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <div className="flex items-center gap-4">
           <h3 className="font-semibold">서비스 계정</h3>
           <div className="flex gap-1 text-sm">
@@ -164,7 +164,7 @@ export function AccountsSection({
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="data-table w-full min-w-[900px] text-sm">
           <thead className="border-b bg-muted/30">
             <tr>
               <th className={cn(th, "w-12 text-center")}>대표</th>

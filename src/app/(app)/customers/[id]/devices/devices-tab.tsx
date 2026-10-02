@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
@@ -98,7 +97,7 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
   return (
     <div className="flex flex-col gap-4">
       <section className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-5 py-3">
+        <div className="card-head">
           <h3 className="font-semibold">제공 장비 수량</h3>
           {!editing && (
             <Button
@@ -117,7 +116,7 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
             </Button>
           )}
         </div>
-        <table className="w-full table-fixed text-sm">
+        <table className="data-table w-full table-fixed text-sm">
           <thead className="border-b bg-muted/30">
             <tr>
               <th className={th}>기기</th>
@@ -177,7 +176,7 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
       </section>
 
       <section className="rounded-lg border bg-background">
-        <div className="flex items-center justify-between border-b px-5 py-3">
+        <div className="card-head">
           <h3 className="font-semibold">
             옵션상품 <span className="text-sm font-normal text-muted-foreground">{data.options.length}건</span>
           </h3>
@@ -189,7 +188,7 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
         {data.options.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">등록된 옵션상품이 없습니다</p>
         ) : (
-          <table className="w-full table-fixed text-sm">
+          <table className="data-table w-full table-fixed text-sm">
             <thead className="border-b bg-muted/30">
               <tr>
                 <th className={th}>구분</th>
@@ -216,13 +215,6 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
             </tbody>
           </table>
         )}
-        <p className="border-t px-5 py-2.5 text-xs text-muted-foreground">
-          금액·수정·삭제는{" "}
-          <Link href={`/customers/${customerId}?tab=contract`} className="underline underline-offset-4">
-            계약·비용 탭
-          </Link>
-          에서 관리합니다. 어느 탭에서 추가해도 양쪽에 표시됩니다.
-        </p>
       </section>
       {options.dialog}
     </div>

@@ -245,9 +245,9 @@ export function SectionCard({
   };
 
   return (
-    <section id={`section-${section}`} className="scroll-mt-20 rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
-        <h3 className="font-semibold">{title}</h3>
+    <section id={`section-${section}`} className="@container scroll-mt-20 rounded-lg border bg-background">
+      <div className="card-head">
+        <h3>{title}</h3>
         {!editing && (
           <Button variant="ghost" size="sm" onClick={startEdit}>
             <Pencil />
@@ -258,7 +258,7 @@ export function SectionCard({
 
       {editing ? (
         <div className="px-5 py-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 @xl:grid-cols-2">
             {visibleFields(section, form).map((f) => (
               <Field
                 key={f.key}
@@ -266,7 +266,7 @@ export function SectionCard({
                 required={f.required}
                 error={errors[f.key]}
                 hint={f.kind === "code" ? codeHint : undefined}
-                className={cn(f.wide && "md:col-span-2")}
+                className={cn(f.wide && "@xl:col-span-2")}
               >
                 {renderInput(f)}
               </Field>
@@ -284,9 +284,9 @@ export function SectionCard({
           </div>
         </div>
       ) : (
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 px-5 py-4 text-sm md:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 px-5 py-4 text-sm @xl:grid-cols-2">
           {visibleFields(section, values).map((f) => (
-            <div key={f.key} className={cn("flex gap-3", f.wide && "md:col-span-2")}>
+            <div key={f.key} className={cn("flex gap-3", f.wide && "@xl:col-span-2")}>
               <dt className="w-32 shrink-0 text-muted-foreground">{f.label}</dt>
               <dd className="min-w-0 flex-1">{renderView(f)}</dd>
             </div>

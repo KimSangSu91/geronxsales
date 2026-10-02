@@ -105,7 +105,7 @@ const Won = ({ v, suffix = "" }: { v: number; suffix?: string }) => (
 function Item({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={cn("flex gap-3", wide && "md:col-span-3")}>
-      <dt className="w-24 shrink-0 text-muted-foreground">{label}</dt>
+      <dt className="w-20 shrink-0 text-muted-foreground">{label}</dt>
       <dd className="min-w-0">{children}</dd>
     </div>
   );
@@ -116,10 +116,10 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
   const a = amounts(c);
   const purchase = c.contractType === "PURCHASE";
   return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
+    <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 text-sm md:grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)_minmax(0,1fr)]">
       <Item label="계약일">{formatDate(c.contractDate)}</Item>
       <Item label="기간">
-        <span className="tabular-nums">
+        <span className="whitespace-nowrap tabular-nums">
           {formatDate(c.startDate)} ~ {formatDate(c.endDate)}{" "}
           {contract.state === "CURRENT" && <span className="text-xs text-muted-foreground">({dDayText(c.endDate, today)})</span>}
         </span>
@@ -132,7 +132,7 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
       <Item label="유형">
         <span className="font-medium">{CONTRACT_TYPE_LABEL[c.contractType]}</span>
       </Item>
-      <Item label="제공 장비">
+      <Item label="제공 장비" wide>
         {QTY.map(([q, , l]) => `${l} ${c[q] || 0}`).join(" · ")}
       </Item>
       {purchase ? (
@@ -491,7 +491,7 @@ export function ContractCard({
 
   return (
     <section className="rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <h3 className="flex items-center gap-2 font-semibold">
           계약 내용
           {badge && <AlertBadge kind={badge} onClick={() => setRenewing(true)} />}

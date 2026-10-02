@@ -23,7 +23,7 @@ const Won = ({ v, big }: { v: number; big?: boolean }) => (
 function Card({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="flex flex-col rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <h2 className="font-semibold">{title}</h2>
         {action}
       </div>
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
       <h1 className="text-xl font-semibold">대시보드</h1>
 
       {/* 상태별 고객사 수 */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 xl:grid-cols-9">
+      <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 xl:grid-cols-9">
         <Link href="/customers" className="flex flex-col gap-1 rounded-lg border bg-background px-3 py-2.5 hover:bg-muted/40">
           <span className="text-xs text-muted-foreground">전체</span>
           <span className="text-lg font-semibold tabular-nums">{total}</span>
@@ -159,30 +159,28 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {/* 알림 목록 */}
-        <div className="xl:col-span-2">
-          <Card title={`알림 ${alerts.length}건`}>
-            {alerts.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">처리할 알림이 없습니다</p>
-            ) : (
-              <ul className="-mx-2 flex flex-col">
-                {alerts.map((a) => (
-                  <li key={a.id}>
-                    <Link href={alertHref(a)} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted">
-                      <AlertChip type={a.type} level={a.level} />
-                      <span className="min-w-0 flex-1 truncate">
-                        {a.customerName && <b className="font-medium">{a.customerName}</b>}
-                        {a.customerName && " · "}
-                        <span className="text-muted-foreground">{a.message}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
+        <Card title={`알림 ${alerts.length}건`}>
+          {alerts.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">처리할 알림이 없습니다</p>
+          ) : (
+            <ul className="-mx-2 flex flex-col">
+              {alerts.map((a) => (
+                <li key={a.id}>
+                  <Link href={alertHref(a)} className="flex items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-muted">
+                    <AlertChip type={a.type} level={a.level} />
+                    <span className="min-w-0 flex-1 truncate">
+                      {a.customerName && <b className="font-medium">{a.customerName}</b>}
+                      {a.customerName && " · "}
+                      <span className="text-muted-foreground">{a.message}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
 
         {/* 도입준비 체크리스트 진행률 */}
         <Card title={`도입준비 ${onboarding.length}곳`}>

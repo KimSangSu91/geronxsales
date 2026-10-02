@@ -61,17 +61,21 @@ export function HistoryTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="rounded-lg border bg-background px-5 py-4">
-        <h3 className="mb-3 font-semibold">기록 남기기</h3>
-        <ActivityForm
-          rows={4}
-          initial={{ activityType: "", occurredOn: today, content: "" }}
-          onSubmit={async (input) => {
-            const r = await addActivity(customerId, input);
-            if (r.ok) toast.success("기록했습니다");
-            return r;
-          }}
-        />
+      <section className="rounded-lg border bg-background">
+        <div className="card-head">
+          <h3>기록 남기기</h3>
+        </div>
+        <div className="px-5 py-4">
+          <ActivityForm
+            rows={4}
+            initial={{ activityType: "", occurredOn: today, content: "" }}
+            onSubmit={async (input) => {
+              const r = await addActivity(customerId, input);
+              if (r.ok) toast.success("기록했습니다");
+              return r;
+            }}
+          />
+        </div>
       </section>
 
       {/* 필터 */}

@@ -50,8 +50,8 @@ export function HistoryPanel({
 
   return (
     <aside className="sticky top-20 hidden max-h-[calc(100vh-6rem)] w-80 shrink-0 flex-col overflow-hidden rounded-lg border bg-background lg:flex">
-      <div className="flex items-center justify-between border-b px-4 py-2.5">
-        <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+      <div className="card-head">
+        <h2 className="flex items-center gap-1.5">
           <History className="size-4" />
           히스토리
         </h2>
@@ -59,13 +59,13 @@ export function HistoryPanel({
           type="button"
           onClick={toggle}
           title="히스토리 패널 접기"
-          className="rounded p-1 text-muted-foreground hover:bg-muted"
+          className="-mr-1 rounded p-1 text-muted-foreground hover:bg-muted"
         >
           <ChevronsRight className="size-4" />
         </button>
       </div>
 
-      <div className="border-b px-4 py-3">
+      <div className="border-b px-5 py-4">
         <ActivityForm
           compact
           initial={{ activityType: "", occurredOn: today, content: "" }}
@@ -77,7 +77,7 @@ export function HistoryPanel({
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4">
         <p className="mb-2 text-xs font-medium text-muted-foreground">최근 기록</p>
         {items.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">기록이 없습니다</p>
@@ -90,7 +90,7 @@ export function HistoryPanel({
         )}
       </div>
 
-      <Link href={historyHref} className="border-t px-4 py-2.5 text-center text-sm text-muted-foreground hover:bg-muted">
+      <Link href={historyHref} className="border-t px-5 py-3 text-center text-sm text-muted-foreground hover:bg-muted">
         히스토리 탭에서 전체 보기 →
       </Link>
     </aside>

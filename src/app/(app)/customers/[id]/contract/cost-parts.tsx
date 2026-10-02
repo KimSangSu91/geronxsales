@@ -56,7 +56,7 @@ export function CostTable({
   const td = "px-2 py-2.5 align-middle first:pl-5 last:pr-5";
   return (
     <section className="rounded-lg border bg-background">
-      <div className="flex items-center justify-between border-b px-5 py-3">
+      <div className="card-head">
         <h3 className="font-semibold">{title}</h3>
         {!readOnly && (
           <Button variant="ghost" size="sm" onClick={onAdd} disabled={!!addDisabledReason} title={addDisabledReason}>
@@ -67,7 +67,7 @@ export function CostTable({
       </div>
       <div className="overflow-x-auto">
         {/* 가로 스크롤 없이 화면 폭에 맞춤: 열 폭 고정, 긴 글자는 … (마우스를 올리면 전체) */}
-        <table className="w-full table-fixed text-sm">
+        <table className="data-table w-full table-fixed text-sm">
           <colgroup>
             <col className="w-[18%]" />
             <col className="w-[16%]" />

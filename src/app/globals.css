@@ -128,3 +128,54 @@
     @apply font-sans;
   }
 }
+/*
+  화면 공통 간격 규칙 — 레이어 밖에 두어 개별 유틸리티(px-*, py-*)보다 우선 적용
+  · .card-head : 카드 제목 줄 (높이 56px, 좌우 20px, 고스트 버튼은 글자 끝이 카드 여백에 맞도록)
+  · .data-table: 카드 안 표 (첫·끝 칸 20px, 나머지 12px, 머리글 40px, 본문 위아래 10px)
+*/
+.card-head {
+  display: flex;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom-width: 1px;
+  padding: 0.5rem 1.25rem;
+}
+.card-head > h2,
+.card-head > h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.card-head > [data-variant="ghost"]:last-child,
+.card-head > :last-child > [data-variant="ghost"]:last-child {
+  margin-right: -0.625rem;
+}
+
+.data-table > * > tr > :is(th, td) {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+.data-table > * > tr > :is(th, td):first-child {
+  padding-left: 1.25rem;
+}
+.data-table > * > tr > :is(th, td):last-child {
+  padding-right: 1.25rem;
+}
+.data-table > thead > tr {
+  border-bottom-width: 1px;
+  background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+}
+.data-table > thead > tr > th {
+  height: 2.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  white-space: nowrap;
+}
+.data-table > tbody > tr > td {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}

@@ -55,7 +55,7 @@ function EntryTable({
 }) {
   const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
   return (
-    <table className="w-full text-sm">
+    <table className="data-table w-full text-sm">
       <thead className="border-b bg-muted/30">
         <tr>
           <th className={cn(th, "w-12 text-center")}>완료</th>
@@ -167,7 +167,7 @@ function OnboardingCard({ customerId, data, today }: { customerId: string; data:
 
   return (
     <section className="rounded-lg border bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+      <div className="card-head flex-wrap">
         <h3 className="font-semibold">도입 체크리스트</h3>
         <Progress done={doneCount} total={data.onboarding.length} />
       </div>
@@ -352,7 +352,7 @@ function ClosureCard({
     }
     if (e.code === "account_deactivation") {
       return inUseAccounts.length ? (
-        <Button variant="outline" size="xs" onClick={() => setConfirmDeactivate(true)}>
+        <Button variant="outline" size="sm" onClick={() => setConfirmDeactivate(true)}>
           일괄 비활성 처리 ({inUseAccounts.length}개)
         </Button>
       ) : (
@@ -364,7 +364,7 @@ function ClosureCard({
 
   return (
     <section className={cn("rounded-lg border bg-background", closure.completed && "opacity-80")}>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3">
+      <div className="card-head flex-wrap">
         <h3 className="font-semibold">
           {closure.type === "NOT_CONVERTED" ? "장비 회수 체크리스트" : "회수·종료 체크리스트"}
           <span className="ml-2 text-sm font-normal text-muted-foreground">

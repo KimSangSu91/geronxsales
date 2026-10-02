@@ -20,7 +20,7 @@ export function AlertSettingsForm({ items }: { items: Item[] }) {
 
   return (
     <section className="max-w-2xl rounded-lg border bg-background">
-      <table className="w-full text-sm">
+      <table className="data-table w-full text-sm">
         <thead className="border-b bg-muted/30">
           <tr className="text-left text-xs text-muted-foreground">
             <th className="py-2 pl-5 font-medium">알림</th>

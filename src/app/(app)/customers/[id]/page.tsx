@@ -270,7 +270,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
               <BillingTab
                 customerId={c.id}
                 thisYear={Number(today.slice(0, 4))}
-                year={typeof sp.year === "string" && /^d{4}$/.test(sp.year) ? Number(sp.year) : Number(today.slice(0, 4))}
+                year={typeof sp.year === "string" && /^\d{4}$/.test(sp.year) ? Number(sp.year) : Number(today.slice(0, 4))}
               />
             ) : tab === "devices" && devicesData ? (
               <DevicesTab customerId={c.id} data={devicesData} today={today} />

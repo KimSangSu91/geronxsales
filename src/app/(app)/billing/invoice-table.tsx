@@ -97,9 +97,9 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
 
   return (
     <>
-      <table className="w-full table-fixed text-sm">
+      <table className="data-table w-full table-fixed text-sm">
         <colgroup>
-          <col className="w-8" />
+          <col className="w-12" />
           {showCustomer && <col className="w-[16%]" />}
           <col className="w-20" />
           <col className="w-[15%]" />
@@ -153,7 +153,7 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
                   </td>
                   <td className={td}>
                     <select
-                      className={cn(selectClass, "h-7 rounded-full border px-2 text-xs font-medium", STATUS_TONE[r.status])}
+                      className={cn(selectClass, "h-8 rounded-full border px-2.5 text-xs font-medium", STATUS_TONE[r.status])}
                       value={r.status}
                       disabled={busy === r.id}
                       onChange={(e) => save(r, { status: e.target.value as InvoiceStatus }, "상태를 변경했습니다")}
@@ -194,7 +194,8 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
                     ) : (
                       <Button
                         variant="outline"
-                        size="xs"
+                        size="sm"
+                        className="h-8"
                         onClick={() => {
                           target.current = r;
                           fileInput.current?.click();
@@ -247,7 +248,7 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
                         <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant="outline"
-                            size="xs"
+                            size="sm"
                             onClick={() => {
                               setAdjusting(r);
                               setAdjAmount(r.adjusted !== null ? formatWon(r.adjusted) : formatWon(r.planned));
@@ -264,7 +265,7 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
                             onChange={(e) => setMemos({ ...memos, [r.id]: e.target.value })}
                           />
                           {(memos[r.id] ?? r.memo ?? "") !== (r.memo ?? "") && (
-                            <Button size="xs" onClick={() => save(r, { memo: memos[r.id] }, "메모를 저장했습니다")}>
+                            <Button size="sm" onClick={() => save(r, { memo: memos[r.id] }, "메모를 저장했습니다")}>
                               메모 저장
                             </Button>
                           )}
