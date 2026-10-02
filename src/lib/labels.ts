@@ -8,7 +8,6 @@ import type {
 } from "@/generated/prisma/enums";
 
 export const CUSTOMER_STATUS_LABEL: Record<CustomerStatus, string> = {
-  INQUIRY: "문의접수",
   PENDING: "진행대기",
   ONBOARDING: "도입준비",
   TRIAL: "체험중",

@@ -1,0 +1,2 @@
+# Prisma 마이그레이션 파일은 줄바꿈을 LF로 고정 (CRLF로 바뀌면 적용 기록과 지문이 달라짐)
+prisma/migrations/**/*.sql text eol=lf

@@ -1,4 +1,4 @@
-// 늘케어 고객관리 시스템 — Prisma 스키마 (v0.2: 문의 병합 상태·체크리스트 메모 제거)
+// 늘케어 고객관리 시스템 — Prisma 스키마 (v0.3: 고객사 문의접수 상태 제거 → 진행대기로 시작, 문의접수는 인바운드 문의함에서 관리)
 // 기준: 기능정의서 v1.1 / 데이터모델.md
 // 금액은 모두 공급가(원, Int). VAT 포함 금액은 화면에서 계산해 표시
 // 낙관적 잠금: 편집 가능한 테이블은 version 컬럼으로 저장 시 충돌 감지
@@ -21,8 +21,7 @@ enum UserRole {
 }
 
 enum CustomerStatus {
-  INQUIRY // 문의접수
-  PENDING // 진행대기
+  PENDING // 진행대기 (등록·문의 전환 시 시작 상태)
   ONBOARDING // 도입준비
   TRIAL // 체험중
   ACTIVE // 사용중
@@ -244,7 +243,7 @@ model Customer {
   no     Int            @unique @default(autoincrement()) // 화면 표시 번호
   name   String
   code   String?        @unique // 도메인키. 입력 후 변경 불가(앱에서 제어)
-  status CustomerStatus @default(INQUIRY)
+  status CustomerStatus @default(PENDING)
   statusReason String? // 해지·미전환·기타 사유
   statusChangedAt DateTime @default(now())
   endedOn      DateTime? @db.Date // 계약종료·해지일

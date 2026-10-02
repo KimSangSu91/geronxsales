@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 
 // 상태 배지 색: 진행 단계는 파랑 계열, 사용중은 초록, 종료 계열은 회색
 const COLOR: Record<CustomerStatus, string> = {
-  INQUIRY: "bg-slate-100 text-slate-700",
   PENDING: "bg-indigo-50 text-indigo-700",
   ONBOARDING: "bg-sky-50 text-sky-700",
   TRIAL: "bg-violet-50 text-violet-700",

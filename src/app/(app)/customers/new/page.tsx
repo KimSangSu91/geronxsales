@@ -24,7 +24,7 @@ export default async function NewCustomerPage() {
         <h1 className="mt-1 text-xl font-semibold">고객사 등록</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           <span className="text-destructive">*</span> 필수 항목만 입력해도 저장할 수 있습니다. 나머지는 등록 후
-          상세에서 입력하세요. 저장하면 <b>문의접수</b> 상태로 등록됩니다.
+          상세에서 입력하세요. 저장하면 <b>진행대기</b> 상태로 등록됩니다.
         </p>
       </div>
       <CustomerForm owners={owners} defaultOwnerId={user.id} />

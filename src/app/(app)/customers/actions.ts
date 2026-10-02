@@ -54,7 +54,7 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
         data: {
           name: input.name.trim(),
           code,
-          status: "INQUIRY",
+          status: "PENDING",
           facilityType: input.facilityType || "OTHER",
           facilityTypeOther: input.facilityType === "OTHER" ? text(input.facilityTypeOther) : null,
           region: input.region.trim(),
@@ -103,7 +103,7 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
       await recordHistory(tx, {
         customerId: customer.id,
         event: "customer_created",
-        content: "고객사 등록 (문의접수)",
+        content: "고객사 등록 (진행대기)",
         actorId: user.id,
       });
 

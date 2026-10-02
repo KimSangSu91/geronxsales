@@ -1,5 +1,5 @@
 // 상태 전환(도착 상태)별 필수 항목 — 화면·서버 공용, 이 파일에서만 정의 (기능정의서 1장 "단계별 필수 입력 항목")
-// 현재: 등록(문의접수). 다른 상태는 상태 변경 기능 작업 시 추가
+// 현재: 등록(진행대기). 다른 상태는 상태 변경 기능 작업 시 추가
 
 export type MissingItem = { field: string; label: string };
 
@@ -15,7 +15,7 @@ export type RegistrationFacts = {
 
 const blank = (v: string | null | undefined) => !v || !v.trim();
 
-// 등록(문의접수): 시설명 · 시설 유형 · 지역 · 내부 담당자 · 시설 담당자 1명(이름·연락처)
+// 등록(진행대기 — 직접 등록·인바운드 문의 전환 공통): 시설명 · 시설 유형 · 지역 · 내부 담당자 · 시설 담당자 1명(이름·연락처)
 export function missingForRegistration(f: RegistrationFacts): MissingItem[] {
   const missing: MissingItem[] = [];
   if (blank(f.name)) missing.push({ field: "name", label: "시설명" });
