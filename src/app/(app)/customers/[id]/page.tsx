@@ -11,6 +11,9 @@ import { FACILITY_TYPE_LABEL, INBOUND_CHANNEL_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { getCustomerDetail } from "./detail-data";
+import { getHistoryPage, getRecentHistory, parseHistoryFilters } from "./history/history-data";
+import { HistoryPanel } from "./history/history-panel";
+import { HistoryTab } from "./history/history-tab";
 import { BasicInfoTab } from "./info/basic-info-tab";
 import { SECTION_KEYS, type SectionKey } from "./info/sections";
 import { SummaryCards } from "./summary-cards";
@@ -33,7 +36,6 @@ const NOT_READY: Partial<Record<TabKey, string>> = {
   checklist: "1단계 체크리스트 작업",
   documents: "2단계",
   devices: "2단계",
-  history: "1단계 히스토리 작업",
 };
 
 // 처음 열리는 탭 (화면정의서 3-5) — 아직 없는 탭이면 기본정보
@@ -44,7 +46,7 @@ function defaultTab(status: CustomerStatus): TabKey {
 }
 
 export default async function CustomerDetailPage({ params, searchParams }: PageProps<"/customers/[id]">) {
-  await requireUser();
+  const user = await requireUser();
   const { id } = await params;
   const sp = await searchParams;
   const [detail, owners] = await Promise.all([
@@ -56,6 +58,14 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
   const tabParam = typeof sp.tab === "string" ? sp.tab : undefined;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : defaultTab(c.status);
+  const today = todayKst();
+  // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
+  const historyFilters = parseHistoryFilters(sp);
+  const [recent, historyPage] = await Promise.all([
+    tab === "history" ? null : getRecentHistory(c.id, user.id),
+    tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
+  ]);
+
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
   const editSection = SECTION_KEYS.includes(editParam as SectionKey) ? (editParam as SectionKey) : undefined;
 
@@ -161,7 +171,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
             lastActivity: detail.lastActivity,
             primaryAccount: primaryAccount?.loginId ?? null,
             inUseAccounts: c.accounts.filter((a) => a.status === "IN_USE").length,
-            today: todayKst(),
+            today,
           }}
         />
 
@@ -183,13 +193,36 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           ))}
         </nav>
 
-        {tab === "info" ? (
-          <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
-        ) : (
-          <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
-            준비 중입니다 · {NOT_READY[tab]}에서 구현
+        <div className="flex items-start gap-4">
+          <div className="min-w-0 flex-1">
+            {tab === "info" ? (
+              <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
+            ) : tab === "history" && historyPage ? (
+              <HistoryTab
+                customerId={c.id}
+                basePath={base}
+                items={historyPage.items}
+                total={historyPage.total}
+                filters={historyFilters}
+                users={owners}
+                today={today}
+              />
+            ) : (
+              <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+                준비 중입니다 · {NOT_READY[tab]}에서 구현
+              </div>
+            )}
           </div>
-        )}
+          {recent && (
+            <HistoryPanel
+              customerId={c.id}
+              items={recent}
+              today={today}
+              defaultCollapsed={user.historyPanelCollapsed}
+              historyHref={`${base}?tab=history`}
+            />
+          )}
+        </div>
       </div>
     </UnsavedChangesProvider>
   );

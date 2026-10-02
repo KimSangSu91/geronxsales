@@ -1,6 +1,7 @@
 // 화면 표시용 한국어 이름 (enum 값 → 라벨)
 import type {
   AccountStatus,
+  ActivityType,
   AccountType,
   ContactRole,
   CustomerStatus,
@@ -63,4 +64,13 @@ export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
 export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
   IN_USE: "사용",
   INACTIVE: "비활성",
+};
+
+// 수동 히스토리(영업 활동) 유형
+export const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
+  MEETING: "미팅",
+  CALL: "통화",
+  EMAIL: "메일",
+  VISIT: "방문",
+  OTHER: "기타",
 };
