@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { changeStatus } from "./actions";
 
 // 누락 항목 → 입력하러 가기 위치
-function missingHref(base: string, field: string): string {
+export function missingHref(base: string, field: string): string {
   switch (field) {
     case "code":
     case "address":

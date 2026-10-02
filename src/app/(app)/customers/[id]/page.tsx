@@ -109,6 +109,13 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
       });
     }
   }
+  if (tBadge && detail.trial) {
+    banners.push({
+      tone: tBadge === "TRIAL_OVERDUE" ? "danger" : "warn",
+      text: tBadge === "TRIAL_OVERDUE" ? "체험 기간이 경과했습니다." : `체험이 ${formatDate(detail.trial.endDate)}에 종료됩니다.`,
+      action: { label: "체험 결과 처리", href: `${base}?tab=contract&open=trial` },
+    });
+  }
   if (rBadge === "RENEWAL_CANCELLED" && detail.renewalFacts) {
     banners.push({
       tone: "warn",

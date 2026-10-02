@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { CircleAlert, Info } from "lucide-react";
 import { BADGE_INFO, type BadgeKind } from "@/lib/renewal";

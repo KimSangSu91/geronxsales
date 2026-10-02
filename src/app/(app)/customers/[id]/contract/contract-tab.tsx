@@ -40,7 +40,10 @@ import {
 } from "./actions";
 import { toast } from "sonner";
 import { getFileUrl } from "../documents/actions";
+import { Button } from "@/components/ui/button";
+import { AlertBadge } from "@/components/alert-badge";
 import { ContractCard, ContractSummary } from "./contract-card";
+import { TrialDialog } from "./trial-dialog";
 import type { ContractTabData, ContractView } from "./contract-shared";
 import { CostTable, PriceFields, useCostEditor, type CostRow } from "./cost-parts";
 
@@ -113,12 +116,34 @@ const ALL_LABELS: Record<string, string> = {
   ...EXTRA_REASON_LABEL,
 };
 
-function TrialCard({ trial, today }: { trial: NonNullable<ContractTabData["trial"]>; today: string }) {
+function TrialCard({
+  customerId,
+  trial,
+  today,
+  badge,
+  hasContract,
+  openInitially,
+}: {
+  customerId: string;
+  trial: NonNullable<ContractTabData["trial"]>;
+  today: string;
+  badge: BadgeKind | null;
+  hasContract: boolean;
+  openInitially: boolean;
+}) {
+  const [open, setOpen] = useState(openInitially);
   return (
     <section className="rounded-lg border border-violet-200 bg-violet-50/40">
-      <div className="border-b border-violet-200 px-5 py-3">
-        <h3 className="font-semibold">체험 정보</h3>
+      <div className="flex items-center justify-between border-b border-violet-200 px-5 py-3">
+        <h3 className="flex items-center gap-2 font-semibold">
+          체험 정보
+          {badge && <AlertBadge kind={badge} onClick={() => setOpen(true)} />}
+        </h3>
+        <Button variant={badge ? "default" : "ghost"} size="sm" onClick={() => setOpen(true)}>
+          체험 결과 처리
+        </Button>
       </div>
+      <TrialDialog customerId={customerId} trial={trial} hasContract={hasContract} open={open} onOpenChange={setOpen} today={today} />
       <dl className="grid grid-cols-1 gap-2 px-5 py-4 text-sm md:grid-cols-2">
         <div className="flex gap-3">
           <dt className="w-20 shrink-0 text-muted-foreground">체험 기간</dt>
@@ -267,7 +292,16 @@ export function ContractTab({
 
   return (
     <div className="flex flex-col gap-4">
-      {status === "TRIAL" && data.trial && <TrialCard trial={data.trial} today={today} />}
+      {status === "TRIAL" && data.trial && (
+        <TrialCard
+          customerId={customerId}
+          trial={data.trial}
+          today={today}
+          badge={trialBadge}
+          hasContract={!!data.current}
+          openInitially={openDialog === "trial"}
+        />
+      )}
       <ContractCard
         customerId={customerId}
         contract={contract}

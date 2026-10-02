@@ -152,6 +152,6 @@ export type ContractTabData = {
   extras: Row<ExtraDeviceInput>[];
   monthlyTotal: number | null; // 이번 달 월 비용 합계
   oneTimeTotal: number; // 일시 비용 합계
-  trial: { startDate: string; endDate: string; qtyHub: number; qtyBand: number; qtyCharger: number; qtyAdapter: number } | null;
+  trial: { id: string; startDate: string; endDate: string; qtyHub: number; qtyBand: number; qtyCharger: number; qtyAdapter: number } | null;
   excelNote: string | null; // 엑셀 이관 계약 정보 (계약 등록 시 참고)
 };

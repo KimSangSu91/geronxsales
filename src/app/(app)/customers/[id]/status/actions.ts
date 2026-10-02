@@ -100,6 +100,10 @@ export async function changeStatus(
         });
         details.push(`체험 ${formatDate(input.trialStart)} ~ ${formatDate(input.trialEnd)}`);
       }
+      // 체험 → 도입준비·사용중: 체험 결과 계약 전환
+      if (expected === "TRIAL" && (target === "ONBOARDING" || target === "ACTIVE")) {
+        await tx.trial.updateMany({ where: { customerId, result: "IN_PROGRESS" }, data: { result: "CONVERTED" } });
+      }
       if (target === "NOT_CONVERTED" && expected === "TRIAL") {
         await tx.trial.updateMany({ where: { customerId, result: "IN_PROGRESS" }, data: { result: "NOT_CONVERTED" } });
       }

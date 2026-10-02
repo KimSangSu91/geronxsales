@@ -58,6 +58,7 @@ export async function getContractTabData(customerId: string, status: string): Pr
     oneTimeTotal: oneTimeTotal(lines),
     trial: trial
       ? {
+          id: trial.id,
           startDate: fromDbDate(trial.startDate),
           endDate: fromDbDate(trial.endDate),
           qtyHub: trial.qtyHub,
