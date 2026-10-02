@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink } from "lucide-react";
 import type { ContactRole, CustomerStatus, FacilityType } from "@/generated/prisma/enums";
@@ -8,6 +9,8 @@ import { AlertChip } from "@/components/alert-chip";
 import type { AlertLevel, AlertType } from "@/generated/prisma/enums";
 import { ALERT_TYPE_LABEL } from "@/lib/alert-info";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
+import { OwnerDialog, type OwnerOption } from "@/components/owner-dialog";
+import { Button } from "@/components/ui/button";
 import { dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL, FACILITY_TYPE_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -30,7 +33,7 @@ export type TableRow = {
   alerts: { type: AlertType; level: AlertLevel; message: string }[];
 };
 
-type Props = { rows: TableRow[]; params: ListParams; today: string; resetHref: string };
+type Props = { rows: TableRow[]; params: ListParams; today: string; resetHref: string; owners: OwnerOption[] };
 
 function SortHeader({ label, sortKey, params }: { label: string; sortKey: SortKey; params: ListParams }) {
   const active = params.sort === sortKey;
@@ -47,127 +50,175 @@ function SortHeader({ label, sortKey, params }: { label: string; sortKey: SortKe
   );
 }
 
-export function CustomerTable({ rows, params, today, resetHref }: Props) {
+export function CustomerTable({ rows, params, today, resetHref, owners }: Props) {
   const router = useRouter();
+  // 선택 → 내부 담당자 일괄 변경 (현재 페이지의 행만, 페이지·필터가 바뀌면 선택 해제)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [changing, setChanging] = useState(false);
+  const pageIds = rows.map((r) => r.id);
+  const picked = pageIds.filter((id) => selected.has(id));
+  const allPicked = pageIds.length > 0 && picked.length === pageIds.length;
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const th = "px-3 py-2.5 text-left text-xs font-medium whitespace-nowrap text-muted-foreground";
   const td = "px-3 py-3 align-middle";
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full min-w-[900px] text-sm">
-        <thead className="border-b bg-muted/40">
-          <tr>
-            <th className={th}><SortHeader label="No" sortKey="no" params={params} /></th>
-            <th className={th}><SortHeader label="시설명" sortKey="name" params={params} /></th>
-            <th className={th}><SortHeader label="상태" sortKey="status" params={params} /></th>
-            <th className={th}>알림</th>
-            <th className={th}>시설 유형 · 지역</th>
-            <th className={th}>대표 담당자</th>
-            <th className={th}><SortHeader label="내부 담당자" sortKey="owner" params={params} /></th>
-            <th className={th}><SortHeader label="계약 종료일" sortKey="endDate" params={params} /></th>
-            <th className={cn(th, "text-center")}>서비스</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 && (
+    <div className="flex flex-col gap-2">
+      {picked.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-4 py-2 text-sm">
+          <span className="font-medium">{picked.length}곳 선택</span>
+          <Button size="sm" className="h-8" onClick={() => setChanging(true)}>
+            담당자 변경
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => setSelected(new Set())}>
+            선택 해제
+          </Button>
+        </div>
+      )}
+      {changing && (
+        <OwnerDialog
+          open
+          onOpenChange={setChanging}
+          title={`내부 담당자 변경 (${picked.length}곳)`}
+          targets={picked.map((id) => ({ id }))}
+          owners={owners}
+          onDone={() => setSelected(new Set())}
+        />
+      )}
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[900px] text-sm">
+          <thead className="border-b bg-muted/40">
             <tr>
-              <td colSpan={9} className="py-16 text-center text-muted-foreground">
-                <p>조건에 맞는 고객사가 없습니다</p>
-                <Link href={resetHref} className="mt-2 inline-block text-sm text-foreground underline underline-offset-4">
-                  필터 초기화
-                </Link>
-              </td>
+              <th className="w-10 pl-4">
+                <input
+                  type="checkbox"
+                  className="size-4 align-middle"
+                  checked={allPicked}
+                  onChange={() => setSelected(allPicked ? new Set() : new Set(pageIds))}
+                  aria-label="이 페이지 전체 선택"
+                />
+              </th>
+              <th className={th}><SortHeader label="No" sortKey="no" params={params} /></th>
+              <th className={th}><SortHeader label="시설명" sortKey="name" params={params} /></th>
+              <th className={th}><SortHeader label="상태" sortKey="status" params={params} /></th>
+              <th className={th}>알림</th>
+              <th className={th}>시설 유형 · 지역</th>
+              <th className={th}>대표 담당자</th>
+              <th className={th}><SortHeader label="내부 담당자" sortKey="owner" params={params} /></th>
+              <th className={th}><SortHeader label="계약 종료일" sortKey="endDate" params={params} /></th>
+              <th className={cn(th, "text-center")}>서비스</th>
             </tr>
-          )}
-          {rows.map((r) => (
-            <tr
-              key={r.id}
-              onClick={() => router.push(`/customers/${r.id}`)}
-              className="cursor-pointer border-b last:border-b-0 hover:bg-muted/40"
-            >
-              <td className={cn(td, "text-muted-foreground tabular-nums")}>{r.no}</td>
-              <td className={td}>
-                <p className="font-semibold">{r.name}</p>
-                {r.code && <p className="text-xs text-muted-foreground">{r.code}</p>}
-              </td>
-              <td className={td}><CustomerStatusBadge status={r.status} /></td>
-              {/* 알림 배지: 아이콘만, 마우스를 올리면 종류·내용 */}
-              <td className={td}>
-                <span className="flex gap-1">
-                  {r.alerts.map((a, i) => (
-                    <AlertChip key={i} type={a.type} level={a.level} compact title={`${ALERT_TYPE_LABEL[a.type]} · ${a.message}`} />
-                  ))}
-                </span>
-              </td>
-              <td className={td}>
-                <p className="whitespace-nowrap">
-                  {r.facilityType === "OTHER" && r.facilityTypeOther ? r.facilityTypeOther : FACILITY_TYPE_LABEL[r.facilityType]}
-                </p>
-                <p className="text-xs text-muted-foreground">{r.region}</p>
-              </td>
-              <td className={td}>
-                {r.primaryContact ? (
-                  <>
-                    <p className="whitespace-nowrap">
-                      {r.primaryContact.name}
-                      {r.primaryContact.role && (
-                        <span className="text-muted-foreground">({CONTACT_ROLE_LABEL[r.primaryContact.role]})</span>
-                      )}
-                      {r.primaryCount > 1 && (
-                        <span className="ml-1 text-xs text-muted-foreground">외 {r.primaryCount - 1}명</span>
-                      )}
-                    </p>
-                    {r.primaryContact.phone && (
-                      <p className="text-xs text-muted-foreground tabular-nums">{r.primaryContact.phone}</p>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </td>
-              <td className={cn(td, "whitespace-nowrap")}>
-                {r.owner.isActive ? (
-                  r.owner.name
-                ) : (
-                  <>
-                    <p className="text-muted-foreground">{r.owner.name}</p>
-                    <p className="text-xs text-red-600">재배정 필요</p>
-                  </>
-                )}
-              </td>
-              <td className={cn(td, "whitespace-nowrap tabular-nums")}>
-                {r.endDate ? (
-                  <>
-                    {formatDate(r.endDate)}{" "}
-                    <span className="text-xs text-muted-foreground">{dDayText(r.endDate, today)}</span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </td>
-              <td className={cn(td, "text-center")}>
-                {r.serviceUrl && /^https?:\/\//i.test(r.serviceUrl) ? (
-                  <a
-                    href={r.serviceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    title="서비스 페이지 열기"
-                    className="inline-flex rounded-md p-1.5 hover:bg-muted"
-                  >
-                    <ExternalLink className="size-4" />
-                  </a>
-                ) : (
-                  <span title="서비스 URL 미등록" className="inline-flex p-1.5 text-muted-foreground/40">
-                    <ExternalLink className="size-4" />
+          </thead>
+          <tbody>
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={10} className="py-16 text-center text-muted-foreground">
+                  <p>조건에 맞는 고객사가 없습니다</p>
+                  <Link href={resetHref} className="mt-2 inline-block text-sm text-foreground underline underline-offset-4">
+                    필터 초기화
+                  </Link>
+                </td>
+              </tr>
+            )}
+            {rows.map((r) => (
+              <tr
+                key={r.id}
+                onClick={() => router.push(`/customers/${r.id}`)}
+                className={cn("cursor-pointer border-b last:border-b-0 hover:bg-muted/40", selected.has(r.id) && "bg-muted/30")}
+              >
+                <td className="pl-4 align-middle" onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" className="size-4 align-middle" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label={`${r.name} 선택`} />
+                </td>
+                <td className={cn(td, "text-muted-foreground tabular-nums")}>{r.no}</td>
+                <td className={td}>
+                  <p className="font-semibold">{r.name}</p>
+                  {r.code && <p className="text-xs text-muted-foreground">{r.code}</p>}
+                </td>
+                <td className={td}><CustomerStatusBadge status={r.status} /></td>
+                {/* 알림 배지: 아이콘만, 마우스를 올리면 종류·내용 */}
+                <td className={td}>
+                  <span className="flex gap-1">
+                    {r.alerts.map((a, i) => (
+                      <AlertChip key={i} type={a.type} level={a.level} compact title={`${ALERT_TYPE_LABEL[a.type]} · ${a.message}`} />
+                    ))}
                   </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </td>
+                <td className={td}>
+                  <p className="whitespace-nowrap">
+                    {r.facilityType === "OTHER" && r.facilityTypeOther ? r.facilityTypeOther : FACILITY_TYPE_LABEL[r.facilityType]}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{r.region}</p>
+                </td>
+                <td className={td}>
+                  {r.primaryContact ? (
+                    <>
+                      <p className="whitespace-nowrap">
+                        {r.primaryContact.name}
+                        {r.primaryContact.role && (
+                          <span className="text-muted-foreground">({CONTACT_ROLE_LABEL[r.primaryContact.role]})</span>
+                        )}
+                        {r.primaryCount > 1 && (
+                          <span className="ml-1 text-xs text-muted-foreground">외 {r.primaryCount - 1}명</span>
+                        )}
+                      </p>
+                      {r.primaryContact.phone && (
+                        <p className="text-xs text-muted-foreground tabular-nums">{r.primaryContact.phone}</p>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </td>
+                <td className={cn(td, "whitespace-nowrap")}>
+                  {r.owner.isActive ? (
+                    r.owner.name
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground">{r.owner.name}</p>
+                      <p className="text-xs text-red-600">재배정 필요</p>
+                    </>
+                  )}
+                </td>
+                <td className={cn(td, "whitespace-nowrap tabular-nums")}>
+                  {r.endDate ? (
+                    <>
+                      {formatDate(r.endDate)}{" "}
+                      <span className="text-xs text-muted-foreground">{dDayText(r.endDate, today)}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">-</span>
+                  )}
+                </td>
+                <td className={cn(td, "text-center")}>
+                  {r.serviceUrl && /^https?:\/\//i.test(r.serviceUrl) ? (
+                    <a
+                      href={r.serviceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="서비스 페이지 열기"
+                      className="inline-flex rounded-md p-1.5 hover:bg-muted"
+                    >
+                      <ExternalLink className="size-4" />
+                    </a>
+                  ) : (
+                    <span title="서비스 URL 미등록" className="inline-flex p-1.5 text-muted-foreground/40">
+                      <ExternalLink className="size-4" />
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

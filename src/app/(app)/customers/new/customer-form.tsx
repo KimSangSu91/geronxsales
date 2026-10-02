@@ -103,9 +103,20 @@ function Section({
 
 type CodeState = "idle" | "checking" | "available" | "taken" | "invalid";
 
-export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defaultOwnerId: string }) {
+export function CustomerForm({
+  owners,
+  defaultOwnerId,
+  preset,
+  inquiryId,
+}: {
+  owners: Owner[];
+  defaultOwnerId: string;
+  preset?: Partial<CustomerInput>; // 인바운드 문의에서 전환할 때 미리 채울 값
+  inquiryId?: string;
+}) {
   const router = useRouter();
-  const [input, setInput] = useState<CustomerInput>(() => initialInput(defaultOwnerId));
+  const start = () => ({ ...initialInput(defaultOwnerId), ...preset });
+  const [input, setInput] = useState<CustomerInput>(start);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string>();
   const [submitted, setSubmitted] = useState(false);
@@ -116,7 +127,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
   const [pending, startTransition] = useTransition();
   const saving = useRef(false);
 
-  const [initialJson] = useState(() => JSON.stringify(initialInput(defaultOwnerId)));
+  const [initialJson] = useState(() => JSON.stringify(start()));
   const dirty = JSON.stringify(input) !== initialJson;
 
   const trimmedCode = input.code.trim();
@@ -192,7 +203,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
     setMessage(undefined);
     saving.current = true;
     startTransition(async () => {
-      const result = await createCustomer(input);
+      const result = await createCustomer(input, inquiryId);
       // 성공하면 서버에서 상세 화면으로 이동하므로 여기에는 실패만 돌아옴
       saving.current = false;
       if (result) {
@@ -321,11 +332,11 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
                   </option>
                 ))}
               </select>
-              {input.inboundChannel === "REFERRAL" && (
+              {(input.inboundChannel === "REFERRAL" || input.inboundChannel === "GOOGLE_FORM") && (
                 <Input
                   value={input.referrer}
                   onChange={(e) => set("referrer", e.target.value)}
-                  placeholder="소개처"
+                  placeholder={input.inboundChannel === "REFERRAL" ? "소개처" : "수신 경로"}
                 />
               )}
             </div>
@@ -342,7 +353,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
       </Section>
 
       {/* 시설 담당자 */}
-      <Section title="시설 담당자" description="1명 이상 필수 · 대표 담당자(실무·주 소통 담당자)는 여러 명 지정 가능" open>
+      <Section title="시설 담당자" open>
         <div className="flex flex-col gap-3">
           {errors.contacts && <p className="text-sm text-destructive">{errors.contacts}</p>}
           {input.contacts.map((c, i) => (
@@ -537,7 +548,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
       {/* 서비스 운영 */}
       <Section
         title="서비스 운영"
-        description="선택 · 서비스 계정은 등록 후 상세에서 추가"
+        description="선택"
         open={isOpen("service")}
         onToggle={() => toggle("service")}
       >

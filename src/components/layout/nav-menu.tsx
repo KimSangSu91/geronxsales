@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BellRing,
+  FileInput,
   Building2,
   Cpu,
   Inbox,
@@ -40,6 +41,7 @@ const SECTIONS: NavSection[] = [
     title: "설정",
     items: [
       { href: "/settings/alerts", label: "알림 기준", icon: BellRing },
+      { href: "/settings/inbound", label: "문의 수신 경로", icon: FileInput, adminOnly: true },
       { href: "/settings/users", label: "사용자 관리", icon: Users, adminOnly: true },
     ],
   },

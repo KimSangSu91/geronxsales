@@ -145,6 +145,7 @@ export async function getCustomerList(p: ListParams) {
     page,
     pageCount,
     rows: rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    allIds: rows.map((r) => r.id), // 엑셀 내보내기용 (필터·정렬 결과 전체)
   };
 }
 

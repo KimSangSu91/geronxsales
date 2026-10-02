@@ -29,7 +29,10 @@ export type CreateCustomerResult = { errors: FieldErrors; message?: string };
 const text = (v: string) => v.trim() || null;
 const int = (v: string) => (v.trim() ? Number(v) : null);
 
-export async function createCustomer(input: CustomerInput): Promise<CreateCustomerResult> {
+class InquiryHandled extends Error {}
+
+// inquiryId: 인바운드 문의에서 전환하는 경우 — 같은 트랜잭션에서 문의를 '전환됨'으로 처리
+export async function createCustomer(input: CustomerInput, inquiryId?: string): Promise<CreateCustomerResult> {
   const user = await requireUser();
 
   const errors = validateCustomerInput(input);
@@ -61,7 +64,7 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
           capacity: int(input.capacity),
           ownerId: owner.id,
           inboundChannel: input.inboundChannel || null,
-          referrer: input.inboundChannel === "REFERRAL" ? text(input.referrer) : null,
+          referrer: input.inboundChannel === "REFERRAL" || input.inboundChannel === "GOOGLE_FORM" ? text(input.referrer) : null,
           memo: text(input.memo),
           bizName: text(input.bizName),
           bizNo: input.bizNo.trim() ? normalizeBizNo(input.bizNo) : null,
@@ -99,16 +102,28 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
         data: items.map((item) => ({ customerId: customer.id, itemId: item.id })),
       });
 
+      let from = "";
+      if (inquiryId) {
+        const q = await tx.inquiry.findUnique({ where: { id: inquiryId }, include: { source: { select: { name: true } } } });
+        const { count } = await tx.inquiry.updateMany({
+          where: { id: inquiryId, status: "NEW" },
+          data: { status: "CONVERTED", customerId: customer.id, handledById: user.id, handledAt: new Date() },
+        });
+        if (!count || !q) throw new InquiryHandled();
+        from = ` · 인바운드 문의에서 전환 (${q.source?.name ?? "직접 등록"})`;
+      }
+
       await recordHistory(tx, {
         customerId: customer.id,
         event: "customer_created",
-        content: "고객사 등록 (진행대기)",
+        content: `고객사 등록 (진행대기)${from}`,
         actorId: user.id,
       });
 
       return customer.id;
     });
   } catch (e) {
+    if (e instanceof InquiryHandled) return { errors: {}, message: "이미 처리된 문의입니다. 문의함을 확인하세요." };
     // 동시에 같은 코드로 저장한 경우
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { errors: { code: "이미 사용 중인 코드입니다." }, message: "입력 내용을 확인하세요." };
@@ -117,5 +132,6 @@ export async function createCustomer(input: CustomerInput): Promise<CreateCustom
   }
 
   revalidatePath("/customers");
+  if (inquiryId) revalidatePath("/inbound");
   redirect(`/customers/${customerId}`);
 }

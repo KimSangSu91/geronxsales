@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import type { InvoiceStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
 import { addMonthsYm } from "@/lib/billing";
@@ -75,7 +76,13 @@ export default async function BillingPage({ searchParams }: PageProps<"/billing"
             )}
           </div>
         </div>
-        {month === thisMonth && <CreateInvoicesButton />}
+        <div className="flex gap-2">
+          <a href={`/billing/export?month=${month}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            <Download />
+            엑셀 내보내기
+          </a>
+          {month === thisMonth && <CreateInvoicesButton />}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

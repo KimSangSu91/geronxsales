@@ -43,7 +43,7 @@ export const SECTIONS: Record<SectionKey, { title: string; fields: FieldDef[] }>
       { key: "capacity", label: "정원", kind: "int", suffix: "명" },
       { key: "ownerId", label: "내부 담당자", kind: "owner", required: true },
       { key: "inboundChannel", label: "유입 채널", kind: "select", options: INBOUND_CHANNEL_LABEL },
-      { key: "referrer", label: "소개처", kind: "text", showIf: (v) => v.inboundChannel === "REFERRAL" },
+      { key: "referrer", label: "소개처 · 수신 경로", kind: "text", showIf: (v) => v.inboundChannel === "REFERRAL" || v.inboundChannel === "GOOGLE_FORM" },
       { key: "memo", label: "메모", kind: "textarea", wide: true },
     ],
   },

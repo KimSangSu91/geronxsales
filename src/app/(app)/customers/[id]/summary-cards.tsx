@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { CopyButton } from "@/components/copy-button";
+import { OwnerDialog, type OwnerOption } from "@/components/owner-dialog";
 import type { ContactRole } from "@/generated/prisma/enums";
 import { dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL } from "@/lib/labels";
@@ -12,7 +13,10 @@ import { cn } from "@/lib/utils";
 export type SummaryData = {
   earlyStage: boolean; // 진행대기·미전환: 계약 카드 대신 유입 채널·최근 활동일
   primaryContacts: { name: string; role: ContactRole | null; phone: string | null }[]; // 여러 명 가능
-  owner: { name: string; isActive: boolean };
+  owner: { id: string; name: string; isActive: boolean };
+  customerId: string;
+  version: number;
+  owners: OwnerOption[]; // 활성 사용자
   contract: { endDate: string; contractUsers: number } | null;
   monthly: number | null;
   inboundChannel: string | null;
@@ -36,6 +40,7 @@ const Empty = () => <span className="text-muted-foreground">-</span>;
 // 상세 상단 요약 카드 (화면정의서 3-4)
 export function SummaryCards({ data, accountsHref }: { data: SummaryData; accountsHref: string }) {
   const [showPhone, setShowPhone] = useState(false);
+  const [changingOwner, setChangingOwner] = useState(false);
   const [first, ...rest] = data.primaryContacts;
 
   return (
@@ -68,13 +73,25 @@ export function SummaryCards({ data, accountsHref }: { data: SummaryData; accoun
       </Card>
 
       <Card label="내부 담당자">
-        {data.owner.isActive ? (
-          <span className="font-medium">{data.owner.name}</span>
-        ) : (
-          <>
-            <span className="text-muted-foreground">{data.owner.name}</span>
-            <p className="text-xs text-red-600">재배정 필요</p>
-          </>
+        <button type="button" onClick={() => setChangingOwner(true)} className="text-left hover:underline" title="내부 담당자 변경">
+          {data.owner.isActive ? (
+            <span className="font-medium">{data.owner.name}</span>
+          ) : (
+            <>
+              <span className="text-muted-foreground">{data.owner.name}</span>
+              <p className="text-xs text-red-600">재배정 필요</p>
+            </>
+          )}
+        </button>
+        {changingOwner && (
+          <OwnerDialog
+            open
+            onOpenChange={setChangingOwner}
+            title="내부 담당자 변경"
+            targets={[{ id: data.customerId, version: data.version }]}
+            owners={data.owners}
+            currentOwnerId={data.owner.id}
+          />
         )}
       </Card>
 

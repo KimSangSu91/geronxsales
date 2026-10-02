@@ -134,3 +134,8 @@ export const PROCESS_METHOD_LABEL: Record<ProcessMethod, string> = {
   MANUAL: "수동",
   CMS: "CMS",
 };
+
+export const USER_ROLE_LABEL: Record<"ADMIN" | "MEMBER", string> = {
+  ADMIN: "관리자",
+  MEMBER: "일반",
+};

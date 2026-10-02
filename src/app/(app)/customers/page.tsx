@@ -32,16 +32,11 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
           고객사 <span className="ml-1 text-base font-normal text-muted-foreground">전체 {list.total}곳</span>
         </h1>
         <div className="flex gap-2">
-          {/* 엑셀 내보내기는 4단계에서 구현 */}
-          <button
-            type="button"
-            disabled
-            title="4단계에서 구현"
-            className={buttonVariants({ variant: "outline", className: "h-9" })}
-          >
+          {/* 현재 탭·검색·필터 결과 전체 (비밀번호 제외) */}
+          <a href={buildListHref(params, { page: 1 }).replace(/^\/customers/, "/customers/export")} className={buttonVariants({ variant: "outline", className: "h-9" })}>
             <Download />
             엑셀 내보내기
-          </button>
+          </a>
           <Link href="/customers/new" className={buttonVariants({ className: "h-9" })}>
             <Plus />
             고객사 등록
@@ -75,10 +70,12 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
 
       {/* ④ 리스트 */}
       <CustomerTable
+        key={`table:${buildListHref(params)}`}
         rows={rows}
         params={params}
         today={todayKst()}
         resetHref={buildListHref(params, { ...EMPTY_FILTERS, q: undefined, page: 1 })}
+        owners={options.users.filter((u) => u.isActive).map((u) => ({ id: u.id, name: u.name }))}
       />
 
       {/* ⑤ 페이지네이션 */}

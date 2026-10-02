@@ -34,6 +34,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <AlertBell hasNew={hasNewAlert} />
           <UserMenu name={user.name} email={user.email} />
         </header>
+        {user.mustChangePassword && (
+          <div className="flex items-center justify-between gap-3 border-b border-orange-200 bg-orange-50 px-6 py-2.5 text-sm text-orange-900">
+            임시 비밀번호로 로그인했습니다. 비밀번호를 변경하세요.
+            <Link href="/mypage#password" className="font-medium underline underline-offset-4">
+              변경하기
+            </Link>
+          </div>
+        )}
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>

@@ -222,7 +222,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           data={{
             earlyStage: c.status === "PENDING" || c.status === "NOT_CONVERTED",
             primaryContacts: primaryContacts.map((x) => ({ name: x.name, role: x.role, phone: x.phone })),
-            owner: { name: c.owner.name, isActive: c.owner.isActive },
+            owner: { id: c.ownerId, name: c.owner.name, isActive: c.owner.isActive },
+            customerId: c.id,
+            version: c.version,
+            owners: owners.filter((o) => o.isActive).map((o) => ({ id: o.id, name: o.name })),
             contract: detail.contract,
             monthly: detail.monthly,
             inboundChannel: c.inboundChannel ? INBOUND_CHANNEL_LABEL[c.inboundChannel] : null,
