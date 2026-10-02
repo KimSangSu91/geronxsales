@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { Download, Eye, Loader2, Plus, Replace, Trash2, Upload } from "lucide-react";
+import { Download, Loader2, Plus, Replace, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +13,12 @@ import {
   DOCUMENT_BUCKET,
   fileProblem,
   FIXED_SLOTS,
-  formatSize,
   SLOT_CONFIG,
   TITLE_MAX,
   titleProblem,
   type TabSlot,
 } from "@/lib/document-rules";
+import { formatDate } from "@/lib/date";
 import { createClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import { completeUpload, deleteDocument, getFileUrl, prepareUpload } from "./actions";
@@ -40,11 +40,10 @@ async function uploadFile(customerId: string, slot: TabSlot, file: File, opts: {
   return true;
 }
 
-async function openFile(id: string, mode: "view" | "download") {
-  const r = await getFileUrl(id, mode);
+async function downloadFile(id: string) {
+  const r = await getFileUrl(id, "download");
   if (!r.ok) return toast.error(r.message);
-  if (mode === "view") window.open(r.url, "_blank", "noopener");
-  else window.location.href = r.url;
+  window.location.href = r.url;
 }
 
 type Row = { key: string; slot: TabSlot; name: string; kind: "필수" | "선택" | "추가"; doc: DocView | null; disabledReason?: string };
@@ -111,14 +110,14 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
       </div>
       <div className="overflow-x-auto">
         {/* 열 폭 고정: 긴 파일명·서류명이 표를 밀어내지 않도록 (넘치면 … 처리, 마우스를 올리면 전체 이름) */}
-        <table className="w-full min-w-[900px] table-fixed text-sm">
+        <table className="w-full table-fixed text-sm">
           <colgroup>
-            <col className="w-[16%]" />
-            <col className="w-[7%]" />
-            <col className="w-[10%]" />
+            <col className="w-[18%]" />
+            <col className="w-14" />
+            <col className="w-24" />
             <col />
-            <col className="w-[19%]" />
-            <col className="w-[250px]" />
+            <col className="w-32" />
+            <col className="w-48" />
           </colgroup>
           <thead className="border-b bg-muted/30">
             <tr>
@@ -148,16 +147,16 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                 </td>
                 <td className={td}>
                   {r.doc ? (
-                    <span className="flex min-w-0 items-center gap-1.5" title={r.doc.fileName}>
-                      <span className="truncate">{r.doc.fileName}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{formatSize(r.doc.size)}</span>
+                    <span className="block truncate" title={r.doc.fileName}>
+                      {r.doc.fileName}
                     </span>
                   ) : (
                     <span className="text-muted-foreground">-</span>
                   )}
                 </td>
                 <td className={cn(td, "truncate text-xs text-muted-foreground")} title={r.doc ? `${r.doc.uploadedBy} · ${r.doc.uploadedAt}` : undefined}>
-                  {r.doc ? `${r.doc.uploadedBy} · ${r.doc.uploadedAt}` : "-"}
+                  {/* 날짜는 일 단위까지 (전체 일시는 마우스를 올리면) */}
+                  {r.doc ? `${r.doc.uploadedBy} · ${formatDate(r.doc.uploadedAt.slice(0, 10))}` : "-"}
                 </td>
                 <td className={cn(td, "text-right whitespace-nowrap")}>
                   {busy === r.key ? (
@@ -166,11 +165,7 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                     </span>
                   ) : r.doc ? (
                     <>
-                      <Button variant="ghost" size="xs" onClick={() => openFile(r.doc!.id, "view")}>
-                        <Eye />
-                        보기
-                      </Button>
-                      <Button variant="ghost" size="xs" onClick={() => openFile(r.doc!.id, "download")}>
+                      <Button variant="ghost" size="xs" onClick={() => downloadFile(r.doc!.id)}>
                         <Download />
                         다운
                       </Button>
