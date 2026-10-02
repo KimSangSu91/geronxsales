@@ -2,8 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { customerCostLines, monthlyTotalAt } from "@/lib/billing";
 import { prisma } from "@/lib/prisma";
-import { renewalBadge, trialBadge, type BadgeKind } from "@/lib/renewal";
-import { getAlertDays } from "@/lib/settings";
+import { LEVEL_ORDER } from "@/lib/alert-info";
 import { addDays, fromDbDate, kstStartOfDay, todayKst, toDbDate } from "@/lib/date";
 import { CUSTOMER_STATUSES } from "@/lib/labels";
 import type { ListParams } from "./list-params";
@@ -29,6 +28,7 @@ function buildWhere(p: ListParams): Prisma.CustomerWhereInput {
   if (p.type.length) and.push({ facilityType: { in: p.type } });
   if (p.owner.length) and.push({ ownerId: { in: p.owner } });
   if (p.pay.length) and.push({ paymentMethod: { in: p.pay } });
+  if (p.alert.length) and.push({ alerts: { some: { resolvedAt: null, type: { in: p.alert } } } });
   if (p.regFrom) and.push({ createdAt: { gte: kstStartOfDay(p.regFrom) } });
   if (p.regTo) and.push({ createdAt: { lt: kstStartOfDay(addDays(p.regTo, 1)) } });
   if (p.endFrom || p.endTo) {
@@ -77,7 +77,8 @@ export async function getCustomerList(p: ListParams) {
         // 월 비용 계산용 (lib/billing.ts — 이번 달 기준)
         contracts: { where: { state: "CURRENT" }, take: 1, include: { charges: true } },
         options: true,
-        trials: { where: { result: "IN_PROGRESS" }, orderBy: { createdAt: "desc" }, take: 1, select: { endDate: true } },
+        // 알림 (해제 안 된 것, 심각도순 표시)
+        alerts: { where: { resolvedAt: null }, select: { type: true, level: true, message: true } },
       },
     }),
   ]);
@@ -93,7 +94,6 @@ export async function getCustomerList(p: ListParams) {
   // 계산 컬럼: 계약 종료일, 월 비용(이번 달 청구 기준 — 구독료·분납·관리비·월 비용·월 옵션상품, 공급가)
   const today = todayKst();
   const thisMonth = today.slice(0, 7);
-  const alertDays = await getAlertDays();
   const rows = customers.map((c) => {
     const contract = c.contracts[0];
     const monthly = monthlyTotalAt(
@@ -114,22 +114,7 @@ export async function getCustomerList(p: ListParams) {
       owner: c.owner,
       primaryContact: c.contacts[0] ?? null,
       primaryCount: c.contacts.length,
-      // 알림 배지 (갱신·체험 — 나머지 알림은 3단계)
-      badges: [
-        renewalBadge(
-          c.status,
-          contract
-            ? {
-                endDate: fromDbDate(contract.endDate),
-                renewalCancelled: contract.renewalCancelled,
-                autoRenewPending: !!contract.autoRenewedFrom,
-              }
-            : null,
-          today,
-          alertDays.renewal,
-        ),
-        trialBadge(c.status, c.trials[0] ? { endDate: fromDbDate(c.trials[0].endDate) } : null, today, alertDays.trial),
-      ].filter((b): b is BadgeKind => !!b),
+      alerts: [...c.alerts].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]),
       endDate: contract ? fromDbDate(contract.endDate) : null,
       monthly,
     };

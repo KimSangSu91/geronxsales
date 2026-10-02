@@ -3,14 +3,23 @@ import { ContractStateChanged, endCustomerContract, renewMonths } from "@/lib/co
 import { extendEnd } from "@/lib/renewal";
 import { formatDate, fromDbDate, todayKst, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
+import { syncAlerts } from "@/lib/alerts";
+import { ensureMonthlyInvoices } from "@/lib/invoice";
 import { prisma } from "@/lib/prisma";
 
 // 매일 배치 (데이터모델 4장) — 여러 번 실행해도 결과가 같음(이미 처리한 건은 조건에서 빠짐)
 // ① 갱신 취소·연장 안 함 계약의 종료일 경과 → 계약종료 + 회수·종료 체크리스트
 // ② 미조치 계약의 종료일 경과 → 종료일을 설정 기간만큼 자동연장 (자동연장 미승인 배지)
-// (3단계에서 ③ 월 청구 건 생성 ④ 알림 생성·해제 추가)
+// ③ 사용중 고객사의 이번 달 청구 건 생성 (이미 있으면 건너뜀)
+// ④ 알림 생성·해제
 export async function runDailyBatch(today = todayKst()) {
-  const result = { ended: [] as string[], autoRenewed: [] as string[], errors: [] as string[] };
+  const result = {
+    ended: [] as string[],
+    autoRenewed: [] as string[],
+    invoices: [] as string[],
+    alerts: { created: 0, resolved: 0 },
+    errors: [] as string[],
+  };
 
   const due = await prisma.contract.findMany({
     where: { state: "CURRENT", endDate: { lt: toDbDate(today) }, customer: { status: "ACTIVE" } },
@@ -58,6 +67,18 @@ export async function runDailyBatch(today = todayKst()) {
     } catch (e) {
       if (!(e instanceof ContractStateChanged)) result.errors.push(`${c.customer.name}: ${(e as Error).message}`);
     }
+  }
+  // ③ 청구 건 (①② 처리 후 — 계약종료된 고객사는 제외됨)
+  try {
+    result.invoices = await ensureMonthlyInvoices(today.slice(0, 7));
+  } catch (e) {
+    result.errors.push(`청구 건 생성: ${(e as Error).message}`);
+  }
+  // ④ 알림
+  try {
+    result.alerts = await syncAlerts(today);
+  } catch (e) {
+    result.errors.push(`알림: ${(e as Error).message}`);
   }
   return result;
 }

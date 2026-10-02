@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/components/date-picker";
 import { formatDate } from "@/lib/date";
+import { ALERT_TYPE_LABEL, ALERT_TYPES } from "@/lib/alert-info";
 import { FACILITY_TYPE_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { buildListHref, EMPTY_FILTERS, type ListParams } from "./list-params";
@@ -16,8 +17,8 @@ type Options = { regions: string[]; users: { id: string; name: string; isActive:
 type Filters = typeof EMPTY_FILTERS;
 
 function pickFilters(p: ListParams): Filters {
-  const { region, type, owner, pay, regFrom, regTo, endFrom, endTo } = p;
-  return { region, type, owner, pay, regFrom, regTo, endFrom, endTo };
+  const { region, type, owner, pay, alert, regFrom, regTo, endFrom, endTo } = p;
+  return { region, type, owner, pay, alert, regFrom, regTo, endFrom, endTo };
 }
 
 function toggle<T>(list: T[], value: T): T[] {
@@ -110,6 +111,11 @@ export function ListControls({ params, options }: { params: ListParams; options:
       label: `결제 수단: ${PAYMENT_METHOD_LABEL[v]}`,
       remove: { pay: params.pay.filter((x) => x !== v) },
     })),
+    ...params.alert.map((v) => ({
+      key: `alert-${v}`,
+      label: `알림: ${ALERT_TYPE_LABEL[v]}`,
+      remove: { alert: params.alert.filter((x) => x !== v) },
+    })),
     ...(params.regFrom || params.regTo
       ? [{ key: "reg", label: `등록일: ${range(params.regFrom, params.regTo)}`, remove: { regFrom: undefined, regTo: undefined } }]
       : []),
@@ -151,7 +157,7 @@ export function ListControls({ params, options }: { params: ListParams; options:
 
       {open && (
         <div className="rounded-lg border bg-muted/20 p-4">
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-4 xl:grid-cols-7">
             <CheckGroup
               label="지역"
               items={options.regions.map((r) => ({ value: r, label: r }))}
@@ -184,6 +190,12 @@ export function ListControls({ params, options }: { params: ListParams; options:
               }))}
               selected={draft.pay}
               onChange={(pay) => setDraft({ ...draft, pay })}
+            />
+            <CheckGroup
+              label="알림"
+              items={ALERT_TYPES.map((a) => ({ value: a, label: ALERT_TYPE_LABEL[a] }))}
+              selected={draft.alert}
+              onChange={(alert) => setDraft({ ...draft, alert })}
             />
             <DateRange
               label="등록일"

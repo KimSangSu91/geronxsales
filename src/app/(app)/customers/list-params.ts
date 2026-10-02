@@ -1,5 +1,6 @@
 // 고객사 리스트의 탭·검색·필터·정렬·페이지 ↔ URL 쿼리 (화면정의서 1-2: URL에 반영)
-import type { CustomerStatus, FacilityType, PaymentMethod } from "@/generated/prisma/enums";
+import type { AlertType, CustomerStatus, FacilityType, PaymentMethod } from "@/generated/prisma/enums";
+import { ALERT_TYPES } from "@/lib/alert-info";
 import { isDateString } from "@/lib/date";
 import { CUSTOMER_STATUSES, FACILITY_TYPE_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 
@@ -14,6 +15,7 @@ export type ListParams = {
   type: FacilityType[];
   owner: string[];
   pay: PaymentMethod[];
+  alert: AlertType[]; // 알림 종류 필터
   regFrom?: string;
   regTo?: string;
   endFrom?: string;
@@ -47,6 +49,7 @@ export function parseListParams(raw: RawParams): ListParams {
     type: list(raw.type).filter((t): t is FacilityType => facilityTypes.includes(t as FacilityType)),
     owner: list(raw.owner).filter(Boolean),
     pay: list(raw.pay).filter((p): p is PaymentMethod => payments.includes(p as PaymentMethod)),
+    alert: list(raw.alert).filter((a): a is AlertType => ALERT_TYPES.includes(a as AlertType)),
     regFrom: date(raw.regFrom),
     regTo: date(raw.regTo),
     endFrom: date(raw.endFrom),
@@ -67,6 +70,7 @@ export function buildListHref(base: ListParams, patch: Partial<ListParams> = {})
   p.type.forEach((v) => sp.append("type", v));
   p.owner.forEach((v) => sp.append("owner", v));
   p.pay.forEach((v) => sp.append("pay", v));
+  p.alert.forEach((v) => sp.append("alert", v));
   if (p.regFrom) sp.set("regFrom", p.regFrom);
   if (p.regTo) sp.set("regTo", p.regTo);
   if (p.endFrom) sp.set("endFrom", p.endFrom);
@@ -82,5 +86,5 @@ export function buildListHref(base: ListParams, patch: Partial<ListParams> = {})
 
 export const EMPTY_FILTERS: Pick<
   ListParams,
-  "region" | "type" | "owner" | "pay" | "regFrom" | "regTo" | "endFrom" | "endTo"
-> = { region: [], type: [], owner: [], pay: [], regFrom: undefined, regTo: undefined, endFrom: undefined, endTo: undefined };
+  "region" | "type" | "owner" | "pay" | "alert" | "regFrom" | "regTo" | "endFrom" | "endTo"
+> = { region: [], type: [], owner: [], pay: [], alert: [], regFrom: undefined, regTo: undefined, endFrom: undefined, endTo: undefined };

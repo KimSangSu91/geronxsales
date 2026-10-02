@@ -17,6 +17,7 @@ import { ChecklistTab } from "./checklist/checklist-tab";
 import { getContractTabData } from "./contract/contract-data";
 import { ContractTab } from "./contract/contract-tab";
 import { getCustomerDetail } from "./detail-data";
+import { BillingTab } from "./billing/billing-tab";
 import { getDevicesData } from "./devices/devices-data";
 import { DevicesTab } from "./devices/devices-tab";
 import { getDocumentsData } from "./documents/documents-data";
@@ -42,9 +43,7 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 // 아직 만들지 않은 탭과 구현 단계
-const NOT_READY: Partial<Record<TabKey, string>> = {
-  billing: "3단계",
-};
+const NOT_READY: Partial<Record<TabKey, string>> = {};
 
 // 처음 열리는 탭 (화면정의서 3-5) — 아직 없는 탭이면 기본정보
 // 미전환·계약종료·계약해지·기타는 회수·종료 체크리스트가 미완료면 체크리스트
@@ -266,6 +265,12 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                 renewalBadge={rBadge}
                 trialBadge={tBadge}
                 openDialog={openParam === "renewal" || openParam === "trial" ? openParam : undefined}
+              />
+            ) : tab === "billing" ? (
+              <BillingTab
+                customerId={c.id}
+                thisYear={Number(today.slice(0, 4))}
+                year={typeof sp.year === "string" && /^d{4}$/.test(sp.year) ? Number(sp.year) : Number(today.slice(0, 4))}
               />
             ) : tab === "devices" && devicesData ? (
               <DevicesTab customerId={c.id} data={devicesData} today={today} />

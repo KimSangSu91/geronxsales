@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink } from "lucide-react";
 import type { ContactRole, CustomerStatus, FacilityType } from "@/generated/prisma/enums";
-import { AlertBadge } from "@/components/alert-badge";
+import { AlertChip } from "@/components/alert-chip";
+import type { AlertLevel, AlertType } from "@/generated/prisma/enums";
+import { ALERT_TYPE_LABEL } from "@/lib/alert-info";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
-import type { BadgeKind } from "@/lib/renewal";
 import { dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL, FACILITY_TYPE_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
@@ -29,7 +30,7 @@ export type TableRow = {
   primaryCount: number;
   endDate: string | null;
   monthly: number | null;
-  badges: BadgeKind[];
+  alerts: { type: AlertType; level: AlertLevel; message: string }[];
 };
 
 type Props = { rows: TableRow[]; params: ListParams; today: string; resetHref: string };
@@ -96,11 +97,11 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                 {r.code && <p className="text-xs text-muted-foreground">{r.code}</p>}
               </td>
               <td className={td}><CustomerStatusBadge status={r.status} /></td>
-              {/* 알림 배지: 아이콘만, 마우스를 올리면 내용 (나머지 알림 종류는 3단계) */}
+              {/* 알림 배지: 아이콘만, 마우스를 올리면 종류·내용 */}
               <td className={td}>
                 <span className="flex gap-1">
-                  {r.badges.map((b) => (
-                    <AlertBadge key={b} kind={b} compact />
+                  {r.alerts.map((a, i) => (
+                    <AlertChip key={i} type={a.type} level={a.level} compact title={`${ALERT_TYPE_LABEL[a.type]} · ${a.message}`} />
                   ))}
                 </span>
               </td>

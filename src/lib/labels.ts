@@ -12,8 +12,10 @@ import type {
   ContactRole,
   CustomerStatus,
   FacilityType,
+  InvoiceStatus,
   InboundChannel,
   PaymentMethod,
+  ProcessMethod,
 } from "@/generated/prisma/enums";
 
 export const CUSTOMER_STATUS_LABEL: Record<CustomerStatus, string> = {
@@ -117,4 +119,18 @@ export const EXTRA_REASON_LABEL: Record<ExtraDeviceReason, string> = {
   BROKEN: "파손",
   EXPANSION: "증설",
   OTHER: "기타",
+};
+
+// ───────── 청구 ─────────
+
+export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  BEFORE: "청구 전",
+  BILLED: "청구 완료",
+  PAID: "입금 확인",
+  UNPAID: "미납",
+};
+
+export const PROCESS_METHOD_LABEL: Record<ProcessMethod, string> = {
+  MANUAL: "수동",
+  CMS: "CMS",
 };

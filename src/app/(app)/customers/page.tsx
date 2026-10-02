@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Download, Plus } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { syncAlertsIfStale } from "@/lib/alerts";
 import { requireUser } from "@/lib/auth";
 import { todayKst } from "@/lib/date";
 import { CUSTOMER_STATUS_LABEL, CUSTOMER_STATUSES } from "@/lib/labels";
@@ -12,6 +13,7 @@ import { buildListHref, EMPTY_FILTERS, parseListParams } from "./list-params";
 
 export default async function CustomersPage({ searchParams }: PageProps<"/customers">) {
   await requireUser();
+  await syncAlertsIfStale();
   const params = parseListParams(await searchParams);
   const [list, options] = await Promise.all([getCustomerList(params), getFilterOptions()]);
 
