@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronDown, ExternalLink, TriangleAlert } from "lucide-react";
+import { ExternalLink, TriangleAlert } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { CustomerStatusBadge } from "@/components/customer-status-badge";
 import { UnsavedChangesProvider } from "@/components/unsaved-changes";
 import type { CustomerStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
@@ -11,6 +10,8 @@ import { FACILITY_TYPE_LABEL, INBOUND_CHANNEL_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { getCustomerDetail } from "./detail-data";
+import { getStatusFacts } from "./status/status-data";
+import { StatusChanger } from "./status/status-changer";
 import { getHistoryPage, getRecentHistory, parseHistoryFilters } from "./history/history-data";
 import { HistoryPanel } from "./history/history-panel";
 import { HistoryTab } from "./history/history-tab";
@@ -61,9 +62,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const today = todayKst();
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
-  const [recent, historyPage] = await Promise.all([
+  const [recent, historyPage, statusFacts] = await Promise.all([
     tab === "history" ? null : getRecentHistory(c.id, user.id),
     tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
+    getStatusFacts(prisma, c.id),
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
@@ -109,16 +111,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                   : FACILITY_TYPE_LABEL[c.facilityType]}{" "}
                 · {c.region}
               </span>
-              {/* 상태 변경 모달은 1단계 상태 변경 작업에서 연결 */}
-              <button
-                type="button"
-                disabled
-                title="상태 변경은 다음 작업에서 구현"
-                className="inline-flex items-center gap-0.5 disabled:cursor-default"
-              >
-                <CustomerStatusBadge status={c.status} />
-                <ChevronDown className="size-3.5 opacity-40" />
-              </button>
+              <StatusChanger customerId={c.id} status={c.status} facts={statusFacts!} today={today} />
             </div>
           </div>
           {serviceUrl ? (
