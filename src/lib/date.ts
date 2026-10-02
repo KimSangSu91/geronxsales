@@ -62,11 +62,10 @@ export function dDayLabel(target: string, today: string = todayKst()): string {
   return diff > 0 ? `D-${diff}` : `D+${-diff}`;
 }
 
-// 오늘 기준 남은 기간 설명: "D-90 · 90일 남음" / "D-Day · 오늘 종료" / "D+3 · 3일 지남"
+// 오늘 기준 남은 기간: "90일 남음" / "오늘 종료" / "3일 지남" (화면 표기는 D-day 대신 이것으로 통일)
 export function dDayText(target: string, today: string = todayKst()): string {
   const diff = diffDays(today, target);
-  const rest = diff === 0 ? "오늘 종료" : diff > 0 ? `${diff}일 남음` : `${-diff}일 지남`;
-  return `${dDayLabel(target, today)} · ${rest}`;
+  return diff === 0 ? "오늘 종료" : diff > 0 ? `${diff}일 남음` : `${-diff}일 지남`;
 }
 
 // 'YYYY-MM-DD' → 'YYYY.MM.DD'

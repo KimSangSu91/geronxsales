@@ -7,7 +7,7 @@ import type { ContactRole, CustomerStatus, FacilityType } from "@/generated/pris
 import { AlertBadge } from "@/components/alert-badge";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
 import type { BadgeKind } from "@/lib/renewal";
-import { dDayLabel, formatDate } from "@/lib/date";
+import { dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL, FACILITY_TYPE_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -144,7 +144,7 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                 {r.endDate ? (
                   <>
                     {formatDate(r.endDate)}{" "}
-                    <span className="text-xs text-muted-foreground">{dDayLabel(r.endDate, today)}</span>
+                    <span className="text-xs text-muted-foreground">{dDayText(r.endDate, today)}</span>
                   </>
                 ) : (
                   <span className="text-muted-foreground">-</span>
