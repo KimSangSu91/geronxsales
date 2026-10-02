@@ -2,9 +2,8 @@
 
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import type { EtcCategory } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
-import { ALLOWED_TYPES, DOCUMENT_BUCKET, fileProblem, SLOT_CONFIG, TAB_SLOTS, type TabSlot } from "@/lib/document-rules";
+import { ALLOWED_TYPES, DOCUMENT_BUCKET, fileProblem, SLOT_CONFIG, TAB_SLOTS, titleProblem, type TabSlot } from "@/lib/document-rules";
 import { recordHistory } from "@/lib/history";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,8 +16,8 @@ function done(customerId: string) {
   revalidatePath("/customers");
 }
 
-const slotLabel = (slot: string, etc?: EtcCategory | null) =>
-  slot === "ETC" && etc === "INSTALL_PHOTO" ? "설치 사진" : (SLOT_CONFIG[slot as TabSlot]?.label ?? slot);
+// 추가 자료는 직접 입력한 서류명
+const slotLabel = (slot: string, title?: string | null) => (slot === "ETC" && title ? title : (SLOT_CONFIG[slot as TabSlot]?.label ?? slot));
 
 // ① 업로드 준비: 검사 후 Storage 직접 업로드용 1회성 토큰 발급 (파일 본문은 서버를 거치지 않음)
 export async function prepareUpload(
@@ -26,9 +25,14 @@ export async function prepareUpload(
   slot: TabSlot,
   file: { name: string; size: number; type: string },
   replaceId?: string,
+  title?: string, // 추가 자료 새로 만들 때 서류명
 ): Promise<{ ok: true; path: string; token: string } | Fail> {
   await requireUser();
   if (!TAB_SLOTS.includes(slot)) return { ok: false, message: "잘못된 서류 구분입니다." };
+  if (slot === "ETC" && !replaceId) {
+    const tp = titleProblem(title ?? "");
+    if (tp) return { ok: false, message: tp };
+  }
   const problem = fileProblem(file);
   if (problem) return { ok: false, message: problem };
 
@@ -42,7 +46,8 @@ export async function prepareUpload(
   if (replaceId) {
     const old = await prisma.document.findUnique({ where: { id: replaceId }, select: { customerId: true, slot: true } });
     if (!old || old.customerId !== customerId || old.slot !== slot) return { ok: false, message: "교체할 파일을 찾을 수 없습니다. 새로고침하세요." };
-  } else if (!SLOT_CONFIG[slot].multiple) {
+  } else if (slot !== "ETC") {
+    // 항목당 파일 1개 — 이미 있으면 교체로
     const exists = await existingSingle(customerId, slot);
     if (exists) return { ok: false, message: "이미 등록된 서류가 있습니다. [교체]를 사용하세요." };
   }
@@ -66,7 +71,7 @@ async function existingSingle(customerId: string, slot: TabSlot) {
 // ② 업로드 완료: Storage에 실제로 올라갔는지 확인 후 파일 정보 저장 (교체면 기존 파일 삭제)
 export async function completeUpload(
   customerId: string,
-  input: { slot: TabSlot; path: string; fileName: string; etcCategory?: EtcCategory; replaceId?: string },
+  input: { slot: TabSlot; path: string; fileName: string; title?: string; replaceId?: string },
 ): Promise<{ ok: true } | Fail> {
   const user = await requireUser();
   const storage = createAdminClient().storage.from(DOCUMENT_BUCKET);
@@ -86,6 +91,12 @@ export async function completeUpload(
   }
 
   const old = input.replaceId ? await prisma.document.findUnique({ where: { id: input.replaceId } }) : null;
+  // 추가 자료: 새로 만들 때 서류명 필수 (교체 시에는 기존 서류명 유지)
+  const title = input.slot === "ETC" ? (old?.title ?? input.title?.trim() ?? "") : null;
+  if (input.slot === "ETC" && titleProblem(title ?? "")) {
+    await discard();
+    return { ok: false, message: titleProblem(title ?? "")! };
+  }
   if (input.replaceId && (!old || old.customerId !== customerId || old.slot !== input.slot)) {
     await discard();
     return { ok: false, message: "교체할 파일을 찾을 수 없습니다. 새로고침하세요." };
@@ -99,12 +110,12 @@ export async function completeUpload(
     return { ok: false, message: "현재 계약이 없습니다. 새로고침하세요." };
   }
   // 단일 서류에 그 사이 다른 사람이 먼저 올린 경우
-  if (!old && !SLOT_CONFIG[input.slot].multiple && (await existingSingle(customerId, input.slot))) {
+  if (!old && input.slot !== "ETC" && (await existingSingle(customerId, input.slot))) {
     await discard();
     return { ok: false, message: "그 사이 다른 사용자가 같은 서류를 올렸습니다. 새로고침 후 [교체]를 사용하세요." };
   }
 
-  const label = slotLabel(input.slot, input.etcCategory);
+  const label = slotLabel(input.slot, title);
   try {
     await prisma.$transaction(async (tx) => {
       if (old) await tx.document.delete({ where: { id: old.id } });
@@ -112,7 +123,7 @@ export async function completeUpload(
         data: {
           customerId,
           slot: input.slot,
-          etcCategory: input.slot === "ETC" ? (input.etcCategory ?? "OTHER") : null,
+          title,
           contractId: contract?.id ?? null,
           groupId: randomUUID(),
           fileName: input.fileName.slice(0, 200),
@@ -163,19 +174,6 @@ export async function getFileUrl(documentId: string, mode: "view" | "download"):
   return { ok: true, url: data.signedUrl };
 }
 
-// 썸네일·zip용 링크 여러 개 (기타 자료만 — 입소자 명단 제외)
-export async function getEtcUrls(customerId: string, ids: string[], download: boolean): Promise<{ id: string; url: string; fileName: string }[]> {
-  await requireUser();
-  const docs = await prisma.document.findMany({ where: { customerId, slot: "ETC", id: { in: ids } } });
-  if (!docs.length) return [];
-  const { data } = await createAdminClient()
-    .storage.from(DOCUMENT_BUCKET)
-    .createSignedUrls(docs.map((d) => d.storagePath), download ? 300 : 3600, download ? { download: true } : undefined);
-  return docs
-    .map((d) => ({ id: d.id, fileName: d.fileName, url: data?.find((x) => x.path === d.storagePath)?.signedUrl ?? "" }))
-    .filter((x) => x.url);
-}
-
 export async function deleteDocument(documentId: string): Promise<{ ok: true } | Fail> {
   const user = await requireUser();
   const doc = await prisma.document.findUnique({ where: { id: documentId } });
@@ -186,7 +184,7 @@ export async function deleteDocument(documentId: string): Promise<{ ok: true } |
     await recordHistory(tx, {
       customerId: doc.customerId,
       event: "file_deleted",
-      content: `파일 삭제: ${slotLabel(doc.slot, doc.etcCategory)} (${doc.fileName})`,
+      content: `파일 삭제: ${slotLabel(doc.slot, doc.title)} (${doc.fileName})`,
       actorId: user.id,
     });
   });

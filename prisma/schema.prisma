@@ -576,7 +576,8 @@ model Document {
   customerId  String
   customer    Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
   slot        DocumentSlot
-  etcCategory EtcCategory?
+  title       String? // 추가 자료(ETC)의 서류명 — 사용자가 직접 입력
+  etcCategory EtcCategory? // 미사용 (2026-10-02 분류 대신 서류명 직접 입력)
   contractId  String? // 계약서
   contract    Contract?    @relation(fields: [contractId], references: [id], onDelete: SetNull)
   invoiceId   String? // 세금계산서

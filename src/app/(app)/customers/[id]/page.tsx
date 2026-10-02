@@ -77,7 +77,7 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
     getStatusFacts(prisma, c.id),
     tab === "checklist" ? getChecklistData(c.id) : null,
     tab === "contract" ? getContractTabData(c.id, c.status) : null,
-    tab === "documents" ? getDocumentsData(c.id, c.status) : null,
+    tab === "documents" ? getDocumentsData(c.id) : null,
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;

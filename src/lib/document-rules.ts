@@ -14,22 +14,29 @@ export const ALLOWED_TYPES: Record<string, string> = {
 };
 export const ACCEPT_ATTR = ".pdf,.jpg,.jpeg,.png,.webp,.gif,application/pdf,image/jpeg,image/png,image/webp,image/gif";
 
-// 문서 탭 슬롯 (세금계산서는 청구 탭에서 관리)
+// 문서 탭 기본 항목 (세금계산서는 청구 탭에서 관리) — 모든 항목은 파일 1개만 (바꾸려면 교체)
 export type TabSlot = Exclude<DocumentSlot, "TAX_INVOICE">;
 
-export const SLOT_CONFIG: Record<TabSlot, { label: string; required: boolean; multiple: boolean; group: "required" | "optional" | "etc" }> = {
-  CONTRACT: { label: "계약서", required: true, multiple: false, group: "required" },
-  DEVICE_RECEIPT: { label: "디바이스 인수증", required: true, multiple: false, group: "required" },
-  BIZ_REGISTRATION: { label: "사업자등록증", required: false, multiple: false, group: "optional" },
-  BANKBOOK: { label: "통장사본", required: false, multiple: false, group: "optional" },
-  DRAWING: { label: "도면", required: false, multiple: true, group: "optional" },
-  RESIDENT_LIST: { label: "입소자 명단", required: false, multiple: false, group: "optional" },
-  ETC: { label: "기타 자료", required: false, multiple: true, group: "etc" },
+export const SLOT_CONFIG: Record<TabSlot, { label: string; required: boolean }> = {
+  CONTRACT: { label: "계약서", required: true },
+  DEVICE_RECEIPT: { label: "디바이스 인수증", required: true },
+  BIZ_REGISTRATION: { label: "사업자등록증", required: false },
+  BANKBOOK: { label: "통장사본", required: false },
+  DRAWING: { label: "도면", required: false },
+  RESIDENT_LIST: { label: "입소자 명단", required: false },
+  ETC: { label: "추가 자료", required: false }, // [자료 추가]로 만드는 행 — 서류명 직접 입력
 };
 
 export const TAB_SLOTS = Object.keys(SLOT_CONFIG) as TabSlot[];
+// 표에 항상 보이는 기본 항목 순서
+export const FIXED_SLOTS: Exclude<TabSlot, "ETC">[] = ["CONTRACT", "DEVICE_RECEIPT", "BIZ_REGISTRATION", "BANKBOOK", "DRAWING", "RESIDENT_LIST"];
 
-export const ETC_CATEGORY_LABEL = { INSTALL_PHOTO: "설치 사진", OTHER: "기타" } as const;
+export const TITLE_MAX = 50;
+export function titleProblem(title: string): string | null {
+  if (!title.trim()) return "서류명을 입력하세요.";
+  if (title.trim().length > TITLE_MAX) return `서류명은 ${TITLE_MAX}자까지 입력할 수 있습니다.`;
+  return null;
+}
 
 // 업로드 전 검사 (화면에서 먼저, 서버에서 다시)
 export function fileProblem(f: { name: string; size: number; type: string }): string | null {
