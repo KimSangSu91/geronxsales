@@ -17,10 +17,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/custom
   const params = parseListParams(await searchParams);
   const [list, options] = await Promise.all([getCustomerList(params), getFilterOptions()]);
 
-  const rows: TableRow[] = list.rows.map(({ createdAt, ...r }) => ({
-    ...r,
-    createdOn: todayKst(createdAt),
-  }));
+  const rows: TableRow[] = list.rows;
 
   const tabs = [
     { status: undefined, label: "전체", count: list.total },

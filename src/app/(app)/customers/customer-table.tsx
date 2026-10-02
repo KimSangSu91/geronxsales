@@ -10,7 +10,6 @@ import { ALERT_TYPE_LABEL } from "@/lib/alert-info";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
 import { dDayText, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL, FACILITY_TYPE_LABEL } from "@/lib/labels";
-import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { buildListHref, type ListParams, type SortKey } from "./list-params";
 
@@ -24,12 +23,10 @@ export type TableRow = {
   facilityTypeOther: string | null;
   region: string;
   serviceUrl: string | null;
-  createdOn: string;
   owner: { name: string; isActive: boolean };
   primaryContact: { name: string; role: ContactRole | null; phone: string | null } | null;
   primaryCount: number;
   endDate: string | null;
-  monthly: number | null;
   alerts: { type: AlertType; level: AlertLevel; message: string }[];
 };
 
@@ -58,7 +55,7 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
 
   return (
     <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full min-w-[1100px] text-sm">
+      <table className="w-full min-w-[900px] text-sm">
         <thead className="border-b bg-muted/40">
           <tr>
             <th className={th}><SortHeader label="No" sortKey="no" params={params} /></th>
@@ -69,15 +66,13 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
             <th className={th}>대표 담당자</th>
             <th className={th}><SortHeader label="내부 담당자" sortKey="owner" params={params} /></th>
             <th className={th}><SortHeader label="계약 종료일" sortKey="endDate" params={params} /></th>
-            <th className={cn(th, "text-right")}><SortHeader label="월 비용" sortKey="monthly" params={params} /></th>
-            <th className={th}><SortHeader label="등록일" sortKey="createdAt" params={params} /></th>
             <th className={cn(th, "text-center")}>서비스</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={11} className="py-16 text-center text-muted-foreground">
+              <td colSpan={9} className="py-16 text-center text-muted-foreground">
                 <p>조건에 맞는 고객사가 없습니다</p>
                 <Link href={resetHref} className="mt-2 inline-block text-sm text-foreground underline underline-offset-4">
                   필터 초기화
@@ -105,11 +100,11 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                   ))}
                 </span>
               </td>
-              <td className={cn(td, "whitespace-nowrap")}>
-                {r.facilityType === "OTHER" && r.facilityTypeOther
-                  ? r.facilityTypeOther
-                  : FACILITY_TYPE_LABEL[r.facilityType]}{" "}
-                · {r.region}
+              <td className={td}>
+                <p className="whitespace-nowrap">
+                  {r.facilityType === "OTHER" && r.facilityTypeOther ? r.facilityTypeOther : FACILITY_TYPE_LABEL[r.facilityType]}
+                </p>
+                <p className="text-xs text-muted-foreground">{r.region}</p>
               </td>
               <td className={td}>
                 {r.primaryContact ? (
@@ -151,17 +146,6 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                   <span className="text-muted-foreground">-</span>
                 )}
               </td>
-              <td className={cn(td, "text-right whitespace-nowrap tabular-nums")}>
-                {r.monthly !== null ? (
-                  <>
-                    <p>{formatWon(r.monthly)}원</p>
-                    <p className="text-xs text-muted-foreground">VAT {formatWon(withVat(r.monthly))}원</p>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">-</span>
-                )}
-              </td>
-              <td className={cn(td, "whitespace-nowrap tabular-nums")}>{formatDate(r.createdOn)}</td>
               <td className={cn(td, "text-center")}>
                 {r.serviceUrl && /^https?:\/\//i.test(r.serviceUrl) ? (
                   <a

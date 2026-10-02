@@ -1,9 +1,8 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { customerCostLines, monthlyTotalAt } from "@/lib/billing";
 import { prisma } from "@/lib/prisma";
 import { LEVEL_ORDER } from "@/lib/alert-info";
-import { addDays, fromDbDate, kstStartOfDay, todayKst, toDbDate } from "@/lib/date";
+import { addDays, fromDbDate, kstStartOfDay, toDbDate } from "@/lib/date";
 import { CUSTOMER_STATUSES } from "@/lib/labels";
 import type { ListParams } from "./list-params";
 
@@ -74,9 +73,7 @@ export async function getCustomerList(p: ListParams) {
           orderBy: { createdAt: "asc" },
           select: { name: true, role: true, phone: true },
         },
-        // 월 비용 계산용 (lib/billing.ts — 이번 달 기준)
-        contracts: { where: { state: "CURRENT" }, take: 1, include: { charges: true } },
-        options: true,
+        contracts: { where: { state: "CURRENT" }, take: 1, select: { endDate: true } },
         // 알림 (해제 안 된 것, 심각도순 표시)
         alerts: { where: { resolvedAt: null }, select: { type: true, level: true, message: true } },
       },
@@ -91,15 +88,11 @@ export async function getCustomerList(p: ListParams) {
   for (const g of grouped) counts[g.status] = g._count._all;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  // 계산 컬럼: 계약 종료일, 월 비용(이번 달 청구 기준 — 구독료·분납·관리비·월 비용·월 옵션상품, 공급가)
-  const today = todayKst();
-  const thisMonth = today.slice(0, 7);
+  // 등록일은 정렬에만 사용 (화면에 표시하지 않음)
+  const createdAt = new Map(customers.map((c) => [c.id, c.createdAt.getTime()]));
+  // 계산 컬럼: 계약 종료일
   const rows = customers.map((c) => {
     const contract = c.contracts[0];
-    const monthly = monthlyTotalAt(
-      customerCostLines({ contract: contract ?? null, charges: contract?.charges ?? [], options: c.options, extras: [] }),
-      thisMonth,
-    );
     return {
       id: c.id,
       no: c.no,
@@ -110,13 +103,11 @@ export async function getCustomerList(p: ListParams) {
       facilityTypeOther: c.facilityTypeOther,
       region: c.region,
       serviceUrl: c.serviceUrl,
-      createdAt: c.createdAt,
       owner: c.owner,
       primaryContact: c.contacts[0] ?? null,
       primaryCount: c.contacts.length,
       alerts: [...c.alerts].sort((a, b) => LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level]),
       endDate: contract ? fromDbDate(contract.endDate) : null,
-      monthly,
     };
   });
 
@@ -129,8 +120,7 @@ export async function getCustomerList(p: ListParams) {
       case "status": return statusOrder.get(r.status)!;
       case "owner": return r.owner.name;
       case "endDate": return r.endDate;
-      case "monthly": return r.monthly;
-      case "createdAt": return r.createdAt.getTime();
+      case "createdAt": return createdAt.get(r.id)!;
     }
   };
   const sign = p.dir === "asc" ? 1 : -1;

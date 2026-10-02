@@ -4,7 +4,7 @@ import { ALERT_TYPES } from "@/lib/alert-info";
 import { isDateString } from "@/lib/date";
 import { CUSTOMER_STATUSES, FACILITY_TYPE_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/labels";
 
-export const SORT_KEYS = ["no", "name", "status", "owner", "endDate", "monthly", "createdAt"] as const;
+export const SORT_KEYS = ["no", "name", "status", "owner", "endDate", "createdAt"] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 export type SortDir = "asc" | "desc";
 
