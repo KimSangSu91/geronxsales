@@ -37,6 +37,8 @@ import {
   updateExtraDevice,
   updateOption,
 } from "./actions";
+import { toast } from "sonner";
+import { getFileUrl } from "../documents/actions";
 import { ContractCard, ContractSummary } from "./contract-card";
 import type { ContractTabData, ContractView } from "./contract-shared";
 import { CostTable, PriceFields, useCostEditor, type CostRow } from "./cost-parts";
@@ -150,7 +152,25 @@ function PastContracts({ past, today }: { past: ContractView[]; today: string })
             <div key={c.id} className="flex flex-col gap-3 rounded-md border p-4">
               <p className="text-xs text-muted-foreground">{c.state === "VOID" ? "취소된 계약" : "이전 계약"}</p>
               <ContractSummary contract={c} today={today} />
-              <CostTable title="비용 항목" rows={c.charges.map((x) => chargeRow(x.id, x.input))} readOnly />
+              <p className="flex items-center gap-2 text-sm">
+                <span className="text-muted-foreground">계약서</span>
+                {c.contractDoc ? (
+                  <button
+                    type="button"
+                    className="underline underline-offset-4"
+                    onClick={async () => {
+                      const r = await getFileUrl(c.contractDoc!.id, "view");
+                      if (r.ok) window.open(r.url, "_blank", "noopener");
+                      else toast.error(r.message);
+                    }}
+                  >
+                    {c.contractDoc.fileName}
+                  </button>
+                ) : (
+                  <span className="text-muted-foreground">없음</span>
+                )}
+              </p>
+              <CostTable title="직접 추가 비용" rows={c.charges.map((x) => chargeRow(x.id, x.input))} readOnly />
             </div>
           ))}
         </div>

@@ -16,7 +16,10 @@ export async function getContractTabData(customerId: string, status: string): Pr
     prisma.contract.findMany({
       where: { customerId },
       orderBy: { startDate: "desc" },
-      include: { charges: { orderBy: [{ type: "asc" }, { createdAt: "asc" }] } },
+      include: {
+        charges: { orderBy: [{ type: "asc" }, { createdAt: "asc" }] },
+        documents: { where: { slot: "CONTRACT" }, select: { id: true, fileName: true }, take: 1 },
+      },
     }),
     prisma.optionProduct.findMany({ where: { customerId }, orderBy: { providedOn: "desc" } }),
     prisma.extraDevice.findMany({ where: { customerId }, orderBy: { providedOn: "desc" } }),
@@ -36,6 +39,7 @@ export async function getContractTabData(customerId: string, status: string): Pr
     origin: c.origin,
     input: contractInputOf(c),
     charges: c.charges.map((x) => ({ id: x.id, version: x.version, input: chargeInputOf(x) })),
+    contractDoc: c.documents[0] ?? null,
   });
   const current = contracts.find((c) => c.state === "CURRENT");
   // 비용 항목 표: 계약 금액·옵션상품·추가 기기·직접 추가 비용을 한 표로 정리

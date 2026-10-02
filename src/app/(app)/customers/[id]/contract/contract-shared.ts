@@ -139,6 +139,7 @@ export type ContractView = {
   origin: "NEW" | "RENEWAL" | "AUTO_RENEWAL" | "MIGRATION";
   input: ContractInput;
   charges: Row<ChargeInput>[];
+  contractDoc: { id: string; fileName: string } | null; // 이 계약의 계약서 (문서 탭에서 업로드)
 };
 
 export type ContractTabData = {

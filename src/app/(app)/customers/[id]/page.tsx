@@ -14,6 +14,8 @@ import { ChecklistTab } from "./checklist/checklist-tab";
 import { getContractTabData } from "./contract/contract-data";
 import { ContractTab } from "./contract/contract-tab";
 import { getCustomerDetail } from "./detail-data";
+import { getDocumentsData } from "./documents/documents-data";
+import { DocumentsTab } from "./documents/documents-tab";
 import { getStatusFacts } from "./status/status-data";
 import { StatusChanger } from "./status/status-changer";
 import { getHistoryPage, getRecentHistory, parseHistoryFilters } from "./history/history-data";
@@ -37,7 +39,6 @@ type TabKey = (typeof TABS)[number]["key"];
 // 아직 만들지 않은 탭과 구현 단계
 const NOT_READY: Partial<Record<TabKey, string>> = {
   billing: "3단계",
-  documents: "2단계",
   devices: "2단계",
 };
 
@@ -70,12 +71,13 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const today = todayKst();
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
-  const [recent, historyPage, statusFacts, checklist, contractData] = await Promise.all([
+  const [recent, historyPage, statusFacts, checklist, contractData, documentsData] = await Promise.all([
     tab === "history" ? null : getRecentHistory(c.id, user.id),
     tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
     getStatusFacts(prisma, c.id),
     tab === "checklist" ? getChecklistData(c.id) : null,
     tab === "contract" ? getContractTabData(c.id, c.status) : null,
+    tab === "documents" ? getDocumentsData(c.id, c.status) : null,
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
@@ -87,7 +89,18 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const primaryAccount = c.accounts.find((a) => a.isPrimary) ?? null;
 
   // 안내 배너 (화면정의서 3-3) — 나머지 배너는 해당 기능 구현 시 추가
-  const banners: { tone: "warn"; text: string; action?: { label: string; href: string } }[] = [];
+  const banners: { tone: "warn" | "danger"; text: string; action?: { label: string; href: string } }[] = [];
+  // 필수 서류 누락 (도입준비·사용중) — 화면정의서 3-3
+  if ((c.status === "ONBOARDING" || c.status === "ACTIVE") && statusFacts) {
+    const missingDocs = [!statusFacts.docs.contract && "계약서", !statusFacts.docs.deviceReceipt && "디바이스 인수증"].filter(Boolean);
+    if (missingDocs.length) {
+      banners.push({
+        tone: "danger",
+        text: `필수 서류가 누락되었습니다: ${missingDocs.join(", ")}`,
+        action: { label: "문서 탭으로", href: `${base}?tab=documents` },
+      });
+    }
+  }
   if (detail.openClosure) {
     banners.push({
       tone: "warn",
@@ -156,7 +169,10 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
         {banners.map((b) => (
           <div
             key={b.text}
-            className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+            className={cn(
+              "flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm",
+              b.tone === "danger" ? "border-red-200 bg-red-50 text-red-800" : "border-amber-200 bg-amber-50 text-amber-900",
+            )}
           >
             <TriangleAlert className="size-4 shrink-0" />
             <span className="flex-1">{b.text}</span>
@@ -209,6 +225,8 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
               <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
             ) : tab === "contract" && contractData ? (
               <ContractTab customerId={c.id} status={c.status} data={contractData} today={today} />
+            ) : tab === "documents" && documentsData ? (
+              <DocumentsTab customerId={c.id} data={documentsData} />
             ) : tab === "checklist" && checklist ? (
               <ChecklistTab customerId={c.id} data={checklist} today={today} />
             ) : tab === "history" && historyPage ? (
