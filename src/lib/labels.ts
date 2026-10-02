@@ -2,11 +2,12 @@
 import type {
   AccountStatus,
   ActivityType,
-  BillingTiming,
   ChargeType,
+  ContractType,
   DeviceKind,
   ExtraDeviceReason,
   OptionCategory,
+  PurchasePayment,
   AccountType,
   ContactRole,
   CustomerStatus,
@@ -82,9 +83,14 @@ export const ACTIVITY_TYPE_LABEL: Record<ActivityType, string> = {
 
 // ───────── 계약·비용 ─────────
 
-export const BILLING_TIMING_LABEL: Record<BillingTiming, string> = {
-  PREPAID: "선불",
-  POSTPAID: "후불",
+export const CONTRACT_TYPE_LABEL: Record<ContractType, string> = {
+  PURCHASE: "구축형",
+  SUBSCRIPTION: "구독형",
+};
+
+export const PURCHASE_PAYMENT_LABEL: Record<PurchasePayment, string> = {
+  LUMP_SUM: "일시납",
+  INSTALLMENT: "분납",
 };
 
 export const CHARGE_TYPE_LABEL: Record<ChargeType, string> = {

@@ -17,6 +17,7 @@ import {
   type ExtraDeviceInput,
   type OptionInput,
 } from "@/lib/contract-input";
+import { lineDateText, type CostLine } from "@/lib/billing";
 import { dDayLabel, formatDate } from "@/lib/date";
 import {
   CHARGE_TYPE_LABEL,
@@ -78,6 +79,21 @@ const extraRow = (id: string, x: ExtraDeviceInput): CostRow => ({
   amount: Number(x.amount.replace(/,/g, "")) || 0,
   isFree: x.isFree,
   memo: [x.memo, x.isFree && x.freeReason && `무상: ${x.freeReason}`].filter(Boolean).join(" · "),
+});
+
+// 자동 정리 줄 (계약 금액·옵션상품·추가 기기) → 표 행
+const SOURCE_LABEL = { CONTRACT: "계약", OPTION: "옵션상품", EXTRA: "추가 기기", MANUAL: "" } as const;
+const lineRow = (l: CostLine): CostRow => ({
+  id: l.key,
+  item: l.label,
+  detail: l.detail,
+  qty: "",
+  date: lineDateText(l),
+  type: CHARGE_TYPE_LABEL[l.type],
+  amount: l.amount,
+  isFree: l.isFree,
+  memo: "",
+  auto: SOURCE_LABEL[l.source],
 });
 
 // 충돌 모달 표시 공통
@@ -227,53 +243,6 @@ export function ContractTab({
       {status === "TRIAL" && data.trial && <TrialCard trial={data.trial} today={today} />}
       <ContractCard customerId={customerId} contract={contract} excelNote={data.excelNote} today={today} />
 
-      {/* 비용 항목 */}
-      <CostTable
-        title="비용 항목"
-        rows={(contract?.charges ?? []).map((x) => chargeRow(x.id, x.input))}
-        onAdd={() => charges.open()}
-        onEdit={(id) => charges.open(id)}
-        onDelete={(id) => charges.setDeleting(id)}
-        addDisabledReason={contract ? undefined : "계약을 먼저 등록하세요"}
-        footer={
-          <span className="flex items-center justify-end gap-2">
-            <span className="text-muted-foreground">월 비용 합계 (월 비용 항목 + 월 옵션상품)</span>
-            {data.monthlyTotal !== null ? (
-              <span className="font-semibold tabular-nums">
-                {formatWon(data.monthlyTotal)}원{" "}
-                <span className="text-xs font-normal text-muted-foreground">VAT {formatWon(withVat(data.monthlyTotal))}원</span>
-              </span>
-            ) : (
-              <span className="text-muted-foreground">-</span>
-            )}
-          </span>
-        }
-      />
-      {charges.dialog(
-        "비용 항목",
-        <>
-          <Field label="비용 유형" required error={charges.errors.type}>
-            <select
-              className={selectClass}
-              value={cf.type}
-              onChange={(e) => charges.setForm({ ...cf, type: e.target.value as ChargeInput["type"] })}
-            >
-              <option value="MONTHLY">월 (계약 기간 동안 매월)</option>
-              <option value="ONE_TIME">일시 (청구월 1회)</option>
-            </select>
-          </Field>
-          <Field label="항목명" required error={charges.errors.name}>
-            <Input list="charge-presets" value={cf.name} onChange={(e) => charges.setForm({ ...cf, name: e.target.value })} placeholder="선택 또는 직접 입력" aria-invalid={!!charges.errors.name} />
-            <datalist id="charge-presets">
-              {CHARGE_NAME_PRESETS.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
-          </Field>
-          <PriceFields form={cf} setForm={charges.setForm} errors={charges.errors} showMonth={cf.type === "ONE_TIME"} />
-        </>,
-      )}
-
       {/* 옵션상품 */}
       <CostTable
         title="옵션상품"
@@ -393,6 +362,66 @@ export function ContractTab({
           <Field label="메모" className="sm:col-span-2">
             <Input value={xf.memo} onChange={(e) => extras.setForm({ ...xf, memo: e.target.value })} />
           </Field>
+        </>,
+      )}
+
+      {/* 비용 항목 */}
+      <CostTable
+        title="비용 항목 (최종 정리)"
+        rows={[
+          ...data.lines.filter((l) => l.source !== "MANUAL").map(lineRow),
+          ...(contract?.charges ?? []).map((x) => chargeRow(x.id, x.input)),
+        ]}
+        onAdd={() => charges.open()}
+        onEdit={(id) => charges.open(id)}
+        onDelete={(id) => charges.setDeleting(id)}
+        addDisabledReason={contract ? undefined : "계약을 먼저 등록하세요"}
+        footer={
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-xs text-muted-foreground">
+              계약 내용·옵션상품·추가 기기 금액은 자동으로 정리됩니다. 구축비·기타 장비비 등은 [추가]로 직접 넣으세요.
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-muted-foreground">일시 비용 합계</span>
+              <span className="font-semibold tabular-nums">{formatWon(data.oneTimeTotal)}원</span>
+              <span className="text-xs text-muted-foreground tabular-nums">VAT {formatWon(withVat(data.oneTimeTotal))}원</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-muted-foreground">이번 달({data.thisMonth.replace("-", ".")}) 월 비용</span>
+              {data.monthlyTotal !== null ? (
+                <>
+                  <span className="font-semibold tabular-nums">{formatWon(data.monthlyTotal)}원</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">VAT {formatWon(withVat(data.monthlyTotal))}원</span>
+                </>
+              ) : (
+                <span className="text-muted-foreground">-</span>
+              )}
+            </span>
+          </div>
+        }
+      />
+      {charges.dialog(
+        "비용 항목",
+        <>
+          <Field label="비용 유형" required error={charges.errors.type}>
+            <select
+              className={selectClass}
+              value={cf.type}
+              onChange={(e) => charges.setForm({ ...cf, type: e.target.value as ChargeInput["type"] })}
+            >
+              <option value="MONTHLY">월 (계약 기간 동안 매월)</option>
+              <option value="ONE_TIME">일시 (청구월 1회)</option>
+            </select>
+          </Field>
+          <Field label="항목명" required error={charges.errors.name}>
+            <Input list="charge-presets" value={cf.name} onChange={(e) => charges.setForm({ ...cf, name: e.target.value })} placeholder="선택 또는 직접 입력" aria-invalid={!!charges.errors.name} />
+            <datalist id="charge-presets">
+              {CHARGE_NAME_PRESETS.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+          </Field>
+          <PriceFields form={cf} setForm={charges.setForm} errors={charges.errors} showMonth={cf.type === "ONE_TIME"} />
         </>,
       )}
 

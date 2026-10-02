@@ -1,6 +1,6 @@
 import "server-only";
-import { monthlyTotal } from "@/lib/billing";
-import { fromDbDate } from "@/lib/date";
+import { customerCostLines, monthlyTotalAt, oneTimeTotal } from "@/lib/billing";
+import { fromDbDate, todayKst } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 import {
   chargeInputOf,
@@ -38,16 +38,19 @@ export async function getContractTabData(customerId: string, status: string): Pr
     charges: c.charges.map((x) => ({ id: x.id, version: x.version, input: chargeInputOf(x) })),
   });
   const current = contracts.find((c) => c.state === "CURRENT");
+  // 비용 항목 표: 계약 금액·옵션상품·추가 기기·직접 추가 비용을 한 표로 정리
+  const lines = customerCostLines({ contract: current ?? null, charges: current?.charges ?? [], options, extras });
+  const thisMonth = todayKst().slice(0, 7);
 
   return {
     current: current ? view(current) : null,
     past: contracts.filter((c) => c.state !== "CURRENT").map(view),
     options: options.map((o) => ({ id: o.id, version: o.version, input: optionInputOf(o) })),
     extras: extras.map((x) => ({ id: x.id, version: x.version, input: extraInputOf(x) })),
-    monthlyTotal: monthlyTotal(
-      current?.charges.filter((x) => x.type === "MONTHLY" && !x.isFree) ?? [],
-      options.filter((o) => o.chargeType === "MONTHLY" && !o.isFree),
-    ),
+    lines,
+    thisMonth,
+    monthlyTotal: monthlyTotalAt(lines, thisMonth),
+    oneTimeTotal: oneTimeTotal(lines),
     trial: trial
       ? {
           startDate: fromDbDate(trial.startDate),

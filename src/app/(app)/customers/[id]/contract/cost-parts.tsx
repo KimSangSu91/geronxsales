@@ -29,6 +29,7 @@ export type CostRow = {
   amount: number;
   isFree: boolean;
   memo: string;
+  auto?: string; // 자동으로 정리된 줄: 출처 표시("계약"·"옵션상품"·"추가 기기"), 수정·삭제 없음
 };
 
 export function CostTable({
@@ -97,7 +98,10 @@ export function CostTable({
             )}
             {rows.map((r) => (
               <tr key={r.id} className="border-b last:border-0">
-                <td className={cn(td, "font-medium")}>{r.item}</td>
+                <td className={cn(td, "font-medium")}>
+                  {r.item}
+                  {r.auto && <span className="ml-1 rounded bg-muted px-1 py-0.5 text-[10px] font-normal text-muted-foreground">{r.auto}</span>}
+                </td>
                 <td className={cn(td, "truncate")} title={r.detail}>
                   {r.detail || "-"}
                 </td>
@@ -119,12 +123,16 @@ export function CostTable({
                 </td>
                 {!readOnly && (
                   <td className={cn(td, "text-right whitespace-nowrap")}>
-                    <Button variant="ghost" size="icon-sm" title="수정" onClick={() => onEdit?.(r.id)}>
-                      <Pencil />
-                    </Button>
-                    <Button variant="ghost" size="icon-sm" title="삭제" onClick={() => onDelete?.(r.id)}>
-                      <Trash2 />
-                    </Button>
+                    {!r.auto && (
+                      <>
+                        <Button variant="ghost" size="icon-sm" title="수정" onClick={() => onEdit?.(r.id)}>
+                          <Pencil />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" title="삭제" onClick={() => onDelete?.(r.id)}>
+                          <Trash2 />
+                        </Button>
+                      </>
+                    )}
                   </td>
                 )}
               </tr>

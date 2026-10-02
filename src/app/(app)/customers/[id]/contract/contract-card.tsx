@@ -8,12 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ConflictDialog } from "@/components/conflict-dialog";
 import { DatePicker } from "@/components/date-picker";
-import { Field, selectClass, textareaClass } from "@/components/form";
+import { Field, textareaClass } from "@/components/form";
+import { MoneyInput } from "@/components/money-input";
+import { MonthPicker } from "@/components/month-picker";
 import { useUnsavedChanges } from "@/components/unsaved-changes";
-import { emptyContract, validateContract, type ContractInput } from "@/lib/contract-input";
+import { addMonthsYm, installmentAmount, purchaseTotal } from "@/lib/billing";
+import { AUTO_RENEW_PRESETS, emptyContract, parseAmount, validateContract, type ContractInput } from "@/lib/contract-input";
 import type { FieldErrors } from "@/lib/customer-input";
 import { addDays, addMonths, dDayLabel, formatDate } from "@/lib/date";
-import { BILLING_TIMING_LABEL } from "@/lib/labels";
+import { CONTRACT_TYPE_LABEL, PURCHASE_PAYMENT_LABEL } from "@/lib/labels";
+import { formatWon, withVat } from "@/lib/money";
+import { cn } from "@/lib/utils";
 import { createContract, updateContract, type Conflict } from "./actions";
 import type { ContractView } from "./contract-shared";
 
@@ -22,74 +27,367 @@ const LABELS: Partial<Record<keyof ContractInput, string>> = {
   startDate: "시작일",
   endDate: "종료일",
   contractUsers: "계약 인원",
-  billingTiming: "선불/후불",
   autoRenew: "자동연장",
+  autoRenewMonths: "연장 기간(개월)",
   qtyHub: "허브",
   qtyBand: "밴드",
   qtyCharger: "충전기",
-  qtyAdapter: "어댑터",
+  contractType: "유형",
+  unitPriceHub: "허브 단가",
+  unitPriceBand: "밴드 단가",
+  unitPriceCharger: "충전기 단가",
+  purchasePayment: "납부",
+  purchaseBillingMonth: "청구·분납 시작월",
+  installmentMonths: "분납 개월",
+  managementFee: "월 관리비",
+  managementFeeStart: "관리비 시작월",
   memo: "메모",
 };
 const show = (k: keyof ContractInput, v: unknown) => {
   const s = String(v ?? "");
   if (!s) return "-";
   if (k === "contractDate" || k === "startDate" || k === "endDate") return formatDate(s);
-  if (k === "billingTiming") return BILLING_TIMING_LABEL[s as "PREPAID"];
+  if (k === "contractType") return CONTRACT_TYPE_LABEL[s as "PURCHASE"];
+  if (k === "purchasePayment") return PURCHASE_PAYMENT_LABEL[s as "LUMP_SUM"];
   if (k === "autoRenew") return s === "yes" ? "Y" : "N";
+  if (k === "purchaseBillingMonth" || k === "managementFeeStart") return s.replace("-", ".");
   return s;
 };
 
 const QTY = [
-  ["qtyHub", "허브"],
-  ["qtyBand", "밴드"],
-  ["qtyCharger", "충전기"],
-  ["qtyAdapter", "어댑터"],
+  ["qtyHub", "unitPriceHub", "허브"],
+  ["qtyBand", "unitPriceBand", "밴드"],
+  ["qtyCharger", "unitPriceCharger", "충전기"],
 ] as const;
 
-// 계약 기간 버튼: 시작일 포함 1년 (5/28 → 다음 해 5/27)
-const PERIODS = [
-  { label: "1년", months: 12 },
-  { label: "2년", months: 24 },
-];
+const num = (v: string) => (v.trim() ? Number(v) : 0);
+const price = (v: string) => {
+  const n = parseAmount(v);
+  return Number.isNaN(n) ? 0 : n;
+};
+const renewText = (m: string) => {
+  const n = Number(m);
+  return n % 12 === 0 ? `${n / 12}년` : `${n}개월`;
+};
+
+// 입력값 → 계산된 금액 (화면 표시용)
+function amounts(c: ContractInput) {
+  const p = {
+    qtyHub: num(c.qtyHub),
+    qtyBand: num(c.qtyBand),
+    qtyCharger: num(c.qtyCharger),
+    unitPriceHub: price(c.unitPriceHub),
+    unitPriceBand: price(c.unitPriceBand),
+    unitPriceCharger: price(c.unitPriceCharger),
+  };
+  const total = purchaseTotal(p);
+  const months = num(c.installmentMonths);
+  return {
+    purchaseTotal: total,
+    installment: months >= 2 ? installmentAmount(total, months) : null,
+    subscription: p.qtyBand * p.unitPriceBand,
+  };
+}
+
+const Won = ({ v, suffix = "" }: { v: number; suffix?: string }) => (
+  <span className="tabular-nums">
+    <b>{formatWon(v)}원</b>
+    {suffix}
+    <span className="ml-1 text-xs text-muted-foreground">VAT {formatWon(withVat(v))}원</span>
+  </span>
+);
+
+function Item({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
+  return (
+    <div className={cn("flex gap-3", wide && "md:col-span-3")}>
+      <dt className="w-24 shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="min-w-0">{children}</dd>
+    </div>
+  );
+}
 
 export function ContractSummary({ contract, today }: { contract: ContractView; today: string }) {
   const c = contract.input;
+  const a = amounts(c);
+  const purchase = c.contractType === "PURCHASE";
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm md:grid-cols-3">
-      <div className="flex gap-3">
-        <dt className="w-20 shrink-0 text-muted-foreground">계약일</dt>
-        <dd className="tabular-nums">{formatDate(c.contractDate)}</dd>
-      </div>
-      <div className="flex gap-3 md:col-span-2">
-        <dt className="w-20 shrink-0 text-muted-foreground">기간</dt>
-        <dd className="tabular-nums">
+      <Item label="계약일">{formatDate(c.contractDate)}</Item>
+      <Item label="기간">
+        <span className="tabular-nums">
           {formatDate(c.startDate)} ~ {formatDate(c.endDate)}{" "}
           {contract.state === "CURRENT" && <span className="text-xs text-muted-foreground">({dDayLabel(c.endDate, today)})</span>}
-        </dd>
-      </div>
-      <div className="flex gap-3">
-        <dt className="w-20 shrink-0 text-muted-foreground">계약 인원</dt>
-        <dd>{c.contractUsers}명</dd>
-      </div>
-      <div className="flex gap-3">
-        <dt className="w-20 shrink-0 text-muted-foreground">선불/후불</dt>
-        <dd>{BILLING_TIMING_LABEL[c.billingTiming]}</dd>
-      </div>
-      <div className="flex gap-3">
-        <dt className="w-20 shrink-0 text-muted-foreground">자동연장</dt>
-        <dd>{c.autoRenew === "yes" ? "Y" : "N"}</dd>
-      </div>
-      <div className="flex gap-3 md:col-span-3">
-        <dt className="w-20 shrink-0 text-muted-foreground">계약 장비</dt>
-        <dd className="tabular-nums">{QTY.map(([k, l]) => `${l} ${c[k] || 0}`).join(" · ")}</dd>
-      </div>
+        </span>
+      </Item>
+      <Item label="계약 인원">{c.contractUsers}명</Item>
+      <Item label="자동연장">{c.autoRenew === "yes" ? `Y · ${renewText(c.autoRenewMonths)}씩 연장` : "N"}</Item>
+      <Item label="유형">
+        <span className="font-medium">{CONTRACT_TYPE_LABEL[c.contractType]}</span>
+      </Item>
+      <Item label="제공 장비">
+        {QTY.map(([q, , l]) => `${l} ${c[q] || 0}`).join(" · ")}
+      </Item>
+      {purchase ? (
+        <>
+          <Item label="장비 단가" wide>
+            {QTY.filter(([q]) => num(c[q]) > 0)
+              .map(([q, p, l]) => `${l} ${formatWon(price(c[p]))}원 × ${c[q]}`)
+              .join(" · ")}
+          </Item>
+          <Item label="구축 총액" wide>
+            <Won v={a.purchaseTotal} />
+            <span className="ml-2 text-muted-foreground">
+              {c.purchasePayment === "INSTALLMENT"
+                ? `분납 ${c.installmentMonths}개월 (${c.purchaseBillingMonth.replace("-", ".")}~${addMonthsYm(c.purchaseBillingMonth, num(c.installmentMonths) - 1).replace("-", ".")}) · 월 ${formatWon(a.installment ?? 0)}원`
+                : `일시납 · 청구 ${c.purchaseBillingMonth.replace("-", ".")}`}
+            </span>
+          </Item>
+        </>
+      ) : (
+        <Item label="월 구독료" wide>
+          <Won v={a.subscription} suffix=" /월" />
+          <span className="ml-2 text-muted-foreground">
+            밴드 {c.qtyBand} × {formatWon(price(c.unitPriceBand))}원
+          </span>
+        </Item>
+      )}
+      <Item label="월 관리비" wide>
+        {c.managementFee ? (
+          <>
+            <Won v={price(c.managementFee)} suffix=" /월" />
+            <span className="ml-2 text-muted-foreground">{c.managementFeeStart.replace("-", ".")}부터</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">없음</span>
+        )}
+      </Item>
       {c.memo && (
-        <div className="flex gap-3 md:col-span-3">
-          <dt className="w-20 shrink-0 text-muted-foreground">메모</dt>
-          <dd className="whitespace-pre-wrap">{c.memo}</dd>
-        </div>
+        <Item label="메모" wide>
+          <span className="whitespace-pre-wrap">{c.memo}</span>
+        </Item>
       )}
     </dl>
+  );
+}
+
+// 계약 등록·수정 폼 본문
+function ContractForm({
+  form,
+  set,
+  errors,
+}: {
+  form: ContractInput;
+  set: (patch: Partial<ContractInput>) => void;
+  errors: FieldErrors;
+}) {
+  const a = amounts(form);
+  const purchase = form.contractType === "PURCHASE";
+  const customRenew = !AUTO_RENEW_PRESETS.includes(Number(form.autoRenewMonths));
+  const [renewCustom, setRenewCustom] = useState(customRenew && !!form.autoRenewMonths);
+  const startYm = form.startDate ? form.startDate.slice(0, 7) : "";
+
+  return (
+    <div className="flex max-h-[65vh] flex-col gap-5 overflow-y-auto pr-1">
+      {/* ① 기본 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Field label="계약일" required error={errors.contractDate}>
+          <DatePicker value={form.contractDate || undefined} onChange={(v) => set({ contractDate: v ?? "" })} />
+        </Field>
+        <Field label="시작일" required error={errors.startDate}>
+          <DatePicker value={form.startDate || undefined} onChange={(v) => set({ startDate: v ?? "" })} />
+        </Field>
+        <Field label="종료일" required error={errors.endDate}>
+          <DatePicker value={form.endDate || undefined} onChange={(v) => set({ endDate: v ?? "" })} />
+        </Field>
+        <div className="flex items-center gap-1.5 sm:col-span-3">
+          <span className="text-xs text-muted-foreground">기간</span>
+          {[12, 24].map((m) => (
+            <button
+              key={m}
+              type="button"
+              disabled={!form.startDate}
+              onClick={() => set({ endDate: addDays(addMonths(form.startDate, m), -1) })}
+              className="rounded-full border px-3 py-0.5 text-xs hover:bg-muted disabled:opacity-40"
+            >
+              시작일부터 {m / 12}년
+            </button>
+          ))}
+        </div>
+        <Field label="계약 인원" required error={errors.contractUsers}>
+          <Input inputMode="numeric" value={form.contractUsers} onChange={(e) => set({ contractUsers: e.target.value })} placeholder="명" aria-invalid={!!errors.contractUsers} />
+        </Field>
+        <Field label="자동연장" required error={errors.autoRenew ?? errors.autoRenewMonths} className="sm:col-span-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => set({ autoRenew: "no" })}
+              className={cn("rounded-full border px-3 py-0.5 text-xs", form.autoRenew === "no" ? "border-foreground bg-foreground text-background" : "hover:bg-muted")}
+            >
+              연장 안 함
+            </button>
+            {AUTO_RENEW_PRESETS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setRenewCustom(false);
+                  set({ autoRenew: "yes", autoRenewMonths: String(m) });
+                }}
+                className={cn(
+                  "rounded-full border px-3 py-0.5 text-xs",
+                  form.autoRenew === "yes" && !renewCustom && Number(form.autoRenewMonths) === m
+                    ? "border-foreground bg-foreground text-background"
+                    : "hover:bg-muted",
+                )}
+              >
+                {renewText(String(m))}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setRenewCustom(true);
+                set({ autoRenew: "yes" });
+              }}
+              className={cn("rounded-full border px-3 py-0.5 text-xs", form.autoRenew === "yes" && renewCustom ? "border-foreground bg-foreground text-background" : "hover:bg-muted")}
+            >
+              직접입력
+            </button>
+            {form.autoRenew === "yes" && renewCustom && (
+              <span className="flex items-center gap-1 text-xs">
+                <Input className="h-7 w-16" inputMode="numeric" value={form.autoRenewMonths} onChange={(e) => set({ autoRenewMonths: e.target.value })} />
+                개월
+              </span>
+            )}
+          </div>
+        </Field>
+      </div>
+
+      {/* ② 유형 + ③ 제공 수량·단가 */}
+      <div className="flex flex-col gap-3 rounded-lg border p-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">계약 유형</span>
+          {(["SUBSCRIPTION", "PURCHASE"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => set({ contractType: t })}
+              className={cn("rounded-md border px-3 py-1 text-sm", form.contractType === t ? "border-foreground bg-foreground text-background" : "hover:bg-muted")}
+            >
+              {CONTRACT_TYPE_LABEL[t]}
+            </button>
+          ))}
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-muted-foreground">
+              <th className="pb-1 font-medium">장비</th>
+              <th className="w-24 pb-1 font-medium">제공 수량</th>
+              <th className="pb-1 font-medium">{purchase ? "단가 (공급가)" : "월 단가 (공급가)"}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {QTY.map(([q, p, l]) => (
+              <tr key={q} className="align-top">
+                <td className="py-1 pr-2">{l}</td>
+                <td className="py-1 pr-2">
+                  <Input inputMode="numeric" value={form[q]} onChange={(e) => set({ [q]: e.target.value })} placeholder="0" aria-invalid={!!errors[q]} />
+                </td>
+                <td className="py-1">
+                  {purchase || q === "qtyBand" ? (
+                    <MoneyInput value={form[p]} onChange={(v) => set({ [p]: v })} invalid={!!errors[p]} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">구독형은 밴드만 과금</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {(errors.qty || errors.qtyBand || errors.unitPriceBand || errors.unitPriceHub || errors.unitPriceCharger) && (
+          <p className="text-xs text-destructive">
+            {errors.qty ?? errors.qtyBand ?? errors.unitPriceBand ?? errors.unitPriceHub ?? errors.unitPriceCharger}
+          </p>
+        )}
+
+        {/* ④ 금액·납부 */}
+        {purchase ? (
+          <div className="flex flex-col gap-2 border-t pt-3">
+            <p className="text-sm">
+              구축 총액 <Won v={a.purchaseTotal} />
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Field label="납부" required error={errors.purchasePayment}>
+                <div className="flex gap-1">
+                  {(["LUMP_SUM", "INSTALLMENT"] as const).map((pp) => (
+                    <button
+                      key={pp}
+                      type="button"
+                      onClick={() => set({ purchasePayment: pp })}
+                      className={cn("flex-1 rounded-md border px-2 py-1 text-sm", form.purchasePayment === pp ? "border-foreground bg-foreground text-background" : "hover:bg-muted")}
+                    >
+                      {PURCHASE_PAYMENT_LABEL[pp]}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label={form.purchasePayment === "INSTALLMENT" ? "분납 시작월" : "청구월"} required error={errors.purchaseBillingMonth}>
+                <MonthPicker
+                  value={form.purchaseBillingMonth || undefined}
+                  onChange={(v) => set({ purchaseBillingMonth: v ?? "" })}
+                  invalid={!!errors.purchaseBillingMonth}
+                />
+              </Field>
+              {form.purchasePayment === "INSTALLMENT" && (
+                <Field label="분납 개월 수" required error={errors.installmentMonths}>
+                  <Input inputMode="numeric" value={form.installmentMonths} onChange={(e) => set({ installmentMonths: e.target.value })} placeholder="개월" aria-invalid={!!errors.installmentMonths} />
+                </Field>
+              )}
+            </div>
+            {form.purchasePayment === "INSTALLMENT" && a.installment !== null && (
+              <p className="text-xs text-muted-foreground">
+                월 분납액 {formatWon(a.installment)}원 (원 단위 내림, 남는 금액은 마지막 회차에 포함)
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="border-t pt-3 text-sm">
+            월 구독료 <Won v={a.subscription} suffix=" /월" />
+            <span className="ml-1 text-xs text-muted-foreground">(밴드 수 × 밴드 월 단가, 계약 기간 동안 매월)</span>
+          </p>
+        )}
+      </div>
+
+      {/* ⑤ 관리비 */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label="월 관리비 (선택)" error={errors.managementFee} hint={<span className="text-xs text-muted-foreground">없으면 비워 두세요</span>}>
+          <MoneyInput value={form.managementFee} onChange={(v) => set({ managementFee: v, managementFeeStart: form.managementFeeStart || startYm })} invalid={!!errors.managementFee} />
+        </Field>
+        {price(form.managementFee) > 0 && (
+          <Field label="관리비 청구 시작월" required error={errors.managementFeeStart}>
+            <MonthPicker value={form.managementFeeStart || undefined} onChange={(v) => set({ managementFeeStart: v ?? "" })} invalid={!!errors.managementFeeStart} />
+            {startYm && (
+              <span className="flex gap-1">
+                {[0, 12, 24].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => set({ managementFeeStart: addMonthsYm(startYm, m) })}
+                    className="rounded-full border px-2 py-0.5 text-xs hover:bg-muted"
+                  >
+                    {m === 0 ? "계약 시작월" : `${m / 12}년 후`}
+                  </button>
+                ))}
+              </span>
+            )}
+          </Field>
+        )}
+      </div>
+
+      <Field label="메모">
+        <textarea className={textareaClass} rows={2} value={form.memo} onChange={(e) => set({ memo: e.target.value })} />
+      </Field>
+    </div>
   );
 }
 
@@ -114,7 +412,9 @@ export function ContractCard({
   useUnsavedChanges("contract", !!editing && JSON.stringify(form) !== JSON.stringify(editing.base));
 
   const open = () => {
-    const base = contract ? contract.input : { ...emptyContract(), contractDate: today, startDate: today };
+    const base = contract
+      ? contract.input
+      : { ...emptyContract(), contractDate: today, startDate: today, purchaseBillingMonth: today.slice(0, 7) };
     setEditing({ version: contract?.version, base });
     setForm(base);
     setErrors({});
@@ -138,12 +438,10 @@ export function ContractCard({
     });
   };
 
-  const set = (k: keyof ContractInput, v: string) => setForm((f) => ({ ...f, [k]: v }));
-
   return (
     <section className="rounded-lg border bg-background">
       <div className="flex items-center justify-between border-b px-5 py-3">
-        <h3 className="font-semibold">현재 계약</h3>
+        <h3 className="font-semibold">계약 내용</h3>
         <div className="flex gap-1">
           {contract && (
             <Button variant="ghost" size="sm" onClick={open}>
@@ -172,70 +470,14 @@ export function ContractCard({
       </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && !pending && setEditing(null)}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{contract ? "계약 수정" : "계약 등록"}</DialogTitle>
           </DialogHeader>
           {!contract && excelNote && (
             <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">참고 · 엑셀 이관 정보: {excelNote}</p>
           )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field label="계약일" required error={errors.contractDate}>
-              <DatePicker value={form.contractDate || undefined} onChange={(v) => set("contractDate", v ?? "")} />
-            </Field>
-            <Field label="시작일" required error={errors.startDate}>
-              <DatePicker value={form.startDate || undefined} onChange={(v) => set("startDate", v ?? "")} />
-            </Field>
-            <Field label="종료일" required error={errors.endDate}>
-              <DatePicker value={form.endDate || undefined} onChange={(v) => set("endDate", v ?? "")} />
-            </Field>
-            <div className="flex items-center gap-1.5 sm:col-span-3">
-              <span className="text-xs text-muted-foreground">기간</span>
-              {PERIODS.map((p) => (
-                <button
-                  key={p.label}
-                  type="button"
-                  disabled={!form.startDate}
-                  onClick={() => set("endDate", addDays(addMonths(form.startDate, p.months), -1))}
-                  className="rounded-full border px-3 py-0.5 text-xs hover:bg-muted disabled:opacity-40"
-                >
-                  시작일부터 {p.label}
-                </button>
-              ))}
-            </div>
-            <Field label="계약 인원" required error={errors.contractUsers}>
-              <Input inputMode="numeric" value={form.contractUsers} onChange={(e) => set("contractUsers", e.target.value)} placeholder="명" aria-invalid={!!errors.contractUsers} />
-            </Field>
-            <Field label="선불/후불" required error={errors.billingTiming}>
-              <select className={selectClass} value={form.billingTiming} onChange={(e) => set("billingTiming", e.target.value)}>
-                {Object.entries(BILLING_TIMING_LABEL).map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="자동연장" required error={errors.autoRenew}>
-              <select className={selectClass} value={form.autoRenew} onChange={(e) => set("autoRenew", e.target.value)}>
-                <option value="yes">Y (자동연장)</option>
-                <option value="no">N</option>
-              </select>
-            </Field>
-            <div className="flex flex-col gap-1.5 sm:col-span-3">
-              <span className="text-sm font-medium">계약 장비 수량</span>
-              <div className="grid grid-cols-4 gap-2">
-                {QTY.map(([k, l]) => (
-                  <label key={k} className="flex flex-col gap-1 text-xs text-muted-foreground">
-                    {l}
-                    <Input inputMode="numeric" value={form[k]} onChange={(e) => set(k, e.target.value)} placeholder="0" aria-invalid={!!errors[k]} />
-                  </label>
-                ))}
-              </div>
-            </div>
-            <Field label="메모" className="sm:col-span-3">
-              <textarea className={textareaClass} rows={2} value={form.memo} onChange={(e) => set("memo", e.target.value)} />
-            </Field>
-          </div>
+          {editing && <ContractForm form={form} set={(patch) => setForm((f) => ({ ...f, ...patch }))} errors={errors} />}
           <DialogFooter>
             {message && <p className="mr-auto self-center text-sm text-destructive">{message}</p>}
             <Button variant="outline" onClick={() => setEditing(null)} disabled={pending}>

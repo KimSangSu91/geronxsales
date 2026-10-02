@@ -17,12 +17,14 @@ import type { FieldErrors } from "@/lib/customer-input";
 import { formatDate, fromDbDate, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
 import {
-  BILLING_TIMING_LABEL,
   CHARGE_TYPE_LABEL,
+  CONTRACT_TYPE_LABEL,
   DEVICE_KIND_LABEL,
   EXTRA_REASON_LABEL,
   OPTION_CATEGORY_LABEL,
+  PURCHASE_PAYMENT_LABEL,
 } from "@/lib/labels";
+import { contractLines, contractPricingOf } from "@/lib/billing";
 import { lastEditor } from "@/lib/last-editor";
 import { formatWon } from "@/lib/money";
 import { ConflictError, saveWithVersion } from "@/lib/optimistic";
@@ -57,17 +59,30 @@ function diff<T extends Record<string, unknown>>(before: T, after: T, labels: Pa
 // ───────── 계약 ─────────
 
 function contractData(c: ContractInput) {
+  const purchase = c.contractType === "PURCHASE";
+  const installment = purchase && c.purchasePayment === "INSTALLMENT";
+  const amount = (v: string) => (v.trim() ? parseAmount(v) : null);
+  const fee = amount(c.managementFee);
   return {
     contractDate: toDbDate(c.contractDate),
     startDate: toDbDate(c.startDate),
     endDate: toDbDate(c.endDate),
     contractUsers: Number(c.contractUsers),
-    billingTiming: c.billingTiming,
     autoRenew: c.autoRenew === "yes",
+    autoRenewMonths: c.autoRenew === "yes" ? Number(c.autoRenewMonths) : null,
     qtyHub: n(c.qtyHub),
     qtyBand: n(c.qtyBand),
     qtyCharger: n(c.qtyCharger),
-    qtyAdapter: n(c.qtyAdapter),
+    contractType: c.contractType,
+    // 구독형은 밴드 월 단가만 사용
+    unitPriceHub: purchase ? amount(c.unitPriceHub) : null,
+    unitPriceBand: amount(c.unitPriceBand),
+    unitPriceCharger: purchase ? amount(c.unitPriceCharger) : null,
+    purchasePayment: purchase ? c.purchasePayment : null,
+    purchaseBillingMonth: purchase ? month(c.purchaseBillingMonth) : null,
+    installmentMonths: installment ? Number(c.installmentMonths) : null,
+    managementFee: fee && fee > 0 ? fee : null,
+    managementFeeStart: fee && fee > 0 ? month(c.managementFeeStart) : null,
     memo: text(c.memo),
   };
 }
@@ -77,12 +92,20 @@ const CONTRACT_LABELS: Partial<Record<keyof ContractInput, string>> = {
   startDate: "시작일",
   endDate: "종료일",
   contractUsers: "계약 인원",
-  billingTiming: "선불/후불",
   autoRenew: "자동연장",
+  autoRenewMonths: "연장 기간(개월)",
   qtyHub: "허브",
   qtyBand: "밴드",
   qtyCharger: "충전기",
-  qtyAdapter: "어댑터",
+  contractType: "유형",
+  unitPriceHub: "허브 단가",
+  unitPriceBand: "밴드 단가",
+  unitPriceCharger: "충전기 단가",
+  purchasePayment: "납부",
+  purchaseBillingMonth: "청구·분납 시작월",
+  installmentMonths: "분납 개월",
+  managementFee: "월 관리비",
+  managementFeeStart: "관리비 시작월",
   memo: "메모",
 };
 
@@ -90,9 +113,18 @@ function contractShow(k: keyof ContractInput, v: unknown): string {
   const s = String(v ?? "");
   if (!s) return "-";
   if (k === "contractDate" || k === "startDate" || k === "endDate") return formatDate(s);
-  if (k === "billingTiming") return BILLING_TIMING_LABEL[s as ContractInput["billingTiming"]];
+  if (k === "contractType") return CONTRACT_TYPE_LABEL[s as ContractInput["contractType"]];
+  if (k === "purchasePayment") return PURCHASE_PAYMENT_LABEL[s as ContractInput["purchasePayment"]];
   if (k === "autoRenew") return s === "yes" ? "Y" : "N";
+  if (k === "purchaseBillingMonth" || k === "managementFeeStart") return s.replace("-", ".");
   return s.length > 30 ? `${s.slice(0, 30)}…` : s;
+}
+
+// 계약 금액 한 줄 요약 (히스토리)
+function pricingText(d: ReturnType<typeof contractData>) {
+  const p = contractPricingOf(d);
+  const parts = contractLines(p).map((l) => `${l.label} ${formatWon(l.amount)}원${l.type === "MONTHLY" ? "/월" : ""}`);
+  return `${CONTRACT_TYPE_LABEL[d.contractType]} · ${parts.join(" · ")}`;
 }
 
 export async function createContract(customerId: string, input: ContractInput): Promise<Result> {
@@ -103,7 +135,7 @@ export async function createContract(customerId: string, input: ContractInput): 
   if (current) return { ok: false, message: "현재 계약이 이미 있습니다. 새로고침하세요." };
 
   const d = contractData(input);
-  const qty = [["허브", d.qtyHub], ["밴드", d.qtyBand], ["충전기", d.qtyCharger], ["어댑터", d.qtyAdapter]]
+  const qty = [["허브", d.qtyHub], ["밴드", d.qtyBand], ["충전기", d.qtyCharger]]
     .filter(([, q]) => Number(q) > 0)
     .map(([l, q]) => `${l} ${q}`)
     .join(" · ");
@@ -112,7 +144,7 @@ export async function createContract(customerId: string, input: ContractInput): 
     await recordHistory(tx, {
       customerId,
       event: "contract_created",
-      content: `계약 등록: ${formatDate(input.startDate)} ~ ${formatDate(input.endDate)} · ${d.contractUsers}명 · ${BILLING_TIMING_LABEL[d.billingTiming]} · 자동연장 ${d.autoRenew ? "Y" : "N"}${qty ? ` · 장비 ${qty}` : ""}`,
+      content: `계약 등록: ${formatDate(input.startDate)} ~ ${formatDate(input.endDate)} · ${d.contractUsers}명 · 자동연장 ${d.autoRenew ? `Y(${d.autoRenewMonths}개월)` : "N"}${qty ? ` · 장비 ${qty}` : ""} · ${pricingText(d)}`,
       actorId: user.id,
     });
   });

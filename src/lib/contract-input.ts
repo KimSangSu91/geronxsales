@@ -3,7 +3,6 @@
 import type { FieldErrors } from "@/lib/customer-input";
 import { isDateString } from "@/lib/date";
 import {
-  BILLING_TIMING_LABEL,
   CHARGE_TYPE_LABEL,
   DEVICE_KIND_LABEL,
   EXTRA_REASON_LABEL,
@@ -22,19 +21,27 @@ export function parseAmount(v: string): number {
   return /^\d+$/.test(s) ? Number(s) : NaN;
 }
 
-// ───────── 계약 ─────────
+// ───────── 계약 (계약 내용 + 계약 금액) ─────────
 
 export type ContractInput = {
   contractDate: string;
   startDate: string;
   endDate: string;
   contractUsers: string;
-  billingTiming: "PREPAID" | "POSTPAID";
   autoRenew: "yes" | "no";
+  autoRenewMonths: string; // 자동연장 기간(개월)
   qtyHub: string;
   qtyBand: string;
   qtyCharger: string;
-  qtyAdapter: string;
+  contractType: "PURCHASE" | "SUBSCRIPTION";
+  unitPriceHub: string; // 금액 입력은 쉼표 포함 문자열
+  unitPriceBand: string; // 구축형: 밴드 단가 / 구독형: 밴드 월 단가
+  unitPriceCharger: string;
+  purchasePayment: "LUMP_SUM" | "INSTALLMENT";
+  purchaseBillingMonth: string; // 'YYYY-MM' 일시납 청구월 / 분납 시작월
+  installmentMonths: string;
+  managementFee: string; // 월 관리비 (선택)
+  managementFeeStart: string; // 'YYYY-MM'
   memo: string;
 };
 
@@ -43,14 +50,27 @@ export const emptyContract = (): ContractInput => ({
   startDate: "",
   endDate: "",
   contractUsers: "",
-  billingTiming: "POSTPAID",
   autoRenew: "yes",
+  autoRenewMonths: "12",
   qtyHub: "",
   qtyBand: "",
   qtyCharger: "",
-  qtyAdapter: "",
+  contractType: "SUBSCRIPTION",
+  unitPriceHub: "",
+  unitPriceBand: "",
+  unitPriceCharger: "",
+  purchasePayment: "LUMP_SUM",
+  purchaseBillingMonth: "",
+  installmentMonths: "",
+  managementFee: "",
+  managementFeeStart: "",
   memo: "",
 });
+
+export const AUTO_RENEW_PRESETS = [6, 12, 24];
+
+const qtyOf = (v: string) => (v.trim() ? Number(v) : 0);
+const priceOk = (v: string) => !Number.isNaN(parseAmount(v));
 
 export function validateContract(c: ContractInput): FieldErrors {
   const e: FieldErrors = {};
@@ -59,10 +79,37 @@ export function validateContract(c: ContractInput): FieldErrors {
   if (!isDateString(c.endDate)) e.endDate = "종료일을 선택하세요.";
   else if (isDateString(c.startDate) && c.endDate < c.startDate) e.endDate = "종료일은 시작일 이후여야 합니다.";
   if (!isInt(c.contractUsers, 1)) e.contractUsers = "계약 인원을 1 이상 숫자로 입력하세요.";
-  if (!has(BILLING_TIMING_LABEL, c.billingTiming)) e.billingTiming = "선불/후불을 선택하세요.";
   if (c.autoRenew !== "yes" && c.autoRenew !== "no") e.autoRenew = "자동연장 여부를 선택하세요.";
-  for (const k of ["qtyHub", "qtyBand", "qtyCharger", "qtyAdapter"] as const) {
+  else if (c.autoRenew === "yes" && !isInt(c.autoRenewMonths, 1, 120)) e.autoRenewMonths = "연장 기간(개월)을 입력하세요.";
+
+  for (const k of ["qtyHub", "qtyBand", "qtyCharger"] as const) {
     if (c[k].trim() && !isInt(c[k])) e[k] = "0 이상 숫자";
+  }
+  if (!e.qtyHub && !e.qtyBand && !e.qtyCharger && qtyOf(c.qtyHub) + qtyOf(c.qtyBand) + qtyOf(c.qtyCharger) <= 0)
+    e.qty = "제공 장비 수량을 입력하세요.";
+
+  if (c.contractType !== "PURCHASE" && c.contractType !== "SUBSCRIPTION") e.contractType = "구축형/구독형을 선택하세요.";
+  else if (c.contractType === "PURCHASE") {
+    // 수량이 있는 장비는 단가 필수 (0원 = 무상 제공 가능)
+    const pairs = [
+      ["qtyHub", "unitPriceHub"],
+      ["qtyBand", "unitPriceBand"],
+      ["qtyCharger", "unitPriceCharger"],
+    ] as const;
+    for (const [q, pr] of pairs) if (qtyOf(c[q]) > 0 && !priceOk(c[pr])) e[pr] = "단가를 입력하세요.";
+    if (c.purchasePayment !== "LUMP_SUM" && c.purchasePayment !== "INSTALLMENT") e.purchasePayment = "납부 방법을 선택하세요.";
+    if (!MONTH_RE.test(c.purchaseBillingMonth))
+      e.purchaseBillingMonth = c.purchasePayment === "INSTALLMENT" ? "분납 시작월을 선택하세요." : "청구월을 선택하세요.";
+    if (c.purchasePayment === "INSTALLMENT" && !isInt(c.installmentMonths, 2, 120)) e.installmentMonths = "분납 개월 수(2 이상)를 입력하세요.";
+  } else {
+    if (qtyOf(c.qtyBand) <= 0) e.qtyBand = "구독형은 밴드 수량이 필요합니다.";
+    if (!priceOk(c.unitPriceBand)) e.unitPriceBand = "밴드 월 단가를 입력하세요.";
+  }
+
+  if (c.managementFee.trim()) {
+    const fee = parseAmount(c.managementFee);
+    if (Number.isNaN(fee)) e.managementFee = "금액을 숫자로 입력하세요.";
+    else if (fee > 0 && !MONTH_RE.test(c.managementFeeStart)) e.managementFeeStart = "관리비 청구 시작월을 선택하세요.";
   }
   return e;
 }

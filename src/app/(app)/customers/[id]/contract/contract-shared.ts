@@ -1,5 +1,6 @@
 // 계약·비용 탭 화면·서버 공용: DB 값 → 입력값 변환, 화면용 타입 (브라우저에서도 import 가능)
 import type { ChargeInput, ContractInput, ExtraDeviceInput, OptionInput } from "@/lib/contract-input";
+import type { CostLine } from "@/lib/billing";
 import { fromDbDate } from "@/lib/date";
 import { formatWon } from "@/lib/money";
 
@@ -11,25 +12,42 @@ export function contractInputOf(c: {
   startDate: Date;
   endDate: Date;
   contractUsers: number;
-  billingTiming: "PREPAID" | "POSTPAID";
   autoRenew: boolean;
+  autoRenewMonths: number | null;
   qtyHub: number;
   qtyBand: number;
   qtyCharger: number;
-  qtyAdapter: number;
+  contractType: "PURCHASE" | "SUBSCRIPTION";
+  unitPriceHub: number | null;
+  unitPriceBand: number | null;
+  unitPriceCharger: number | null;
+  purchasePayment: "LUMP_SUM" | "INSTALLMENT" | null;
+  purchaseBillingMonth: Date | null;
+  installmentMonths: number | null;
+  managementFee: number | null;
+  managementFeeStart: Date | null;
   memo: string | null;
 }): ContractInput {
+  const price = (v: number | null) => (v === null ? "" : formatWon(v));
   return {
     contractDate: fromDbDate(c.contractDate),
     startDate: fromDbDate(c.startDate),
     endDate: fromDbDate(c.endDate),
     contractUsers: String(c.contractUsers),
-    billingTiming: c.billingTiming,
     autoRenew: c.autoRenew ? "yes" : "no",
+    autoRenewMonths: c.autoRenewMonths ? String(c.autoRenewMonths) : "",
     qtyHub: String(c.qtyHub),
     qtyBand: String(c.qtyBand),
     qtyCharger: String(c.qtyCharger),
-    qtyAdapter: String(c.qtyAdapter),
+    contractType: c.contractType,
+    unitPriceHub: price(c.unitPriceHub),
+    unitPriceBand: price(c.unitPriceBand),
+    unitPriceCharger: price(c.unitPriceCharger),
+    purchasePayment: c.purchasePayment ?? "LUMP_SUM",
+    purchaseBillingMonth: ym(c.purchaseBillingMonth),
+    installmentMonths: c.installmentMonths ? String(c.installmentMonths) : "",
+    managementFee: c.managementFee ? formatWon(c.managementFee) : "",
+    managementFeeStart: ym(c.managementFeeStart),
     memo: c.memo ?? "",
   };
 }
@@ -123,10 +141,13 @@ export type ContractView = {
 
 export type ContractTabData = {
   current: ContractView | null;
+  lines: CostLine[]; // 비용 항목 표의 자동 줄 (계약·옵션상품·추가 기기)
+  thisMonth: string; // 'YYYY-MM' 월 비용 기준
   past: ContractView[];
   options: Row<OptionInput>[];
   extras: Row<ExtraDeviceInput>[];
-  monthlyTotal: number | null;
+  monthlyTotal: number | null; // 이번 달 월 비용 합계
+  oneTimeTotal: number; // 일시 비용 합계
   trial: { startDate: string; endDate: string; qtyHub: number; qtyBand: number; qtyCharger: number; qtyAdapter: number } | null;
   excelNote: string | null; // 엑셀 이관 계약 정보 (계약 등록 시 참고)
 };

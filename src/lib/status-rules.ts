@@ -73,8 +73,7 @@ export type StatusFacts = {
   paymentMethod: string | null;
   taxInvoice: boolean | null;
   taxInvoiceEmail: string | null;
-  contract: { contractUsers: number; qtyTotal: number } | null; // 현재 계약
-  chargeCount: number; // 현재 계약의 비용 항목 수(무상 포함)
+  contract: { contractUsers: number; qtyTotal: number; priced: boolean } | null; // 현재 계약 (priced = 계약 금액 입력 완료)
   docs: { contract: boolean; deviceReceipt: boolean }; // 최신본 업로드 여부
   inUseAccounts: number; // 사용 중 서비스 계정 수
 };
@@ -148,7 +147,7 @@ export function missingForStatus(target: CustomerStatus, f: StatusFacts): Missin
       need(f.contract.contractUsers > 0, "contract", "계약 인원");
       need(f.contract.qtyTotal > 0, "contract", "계약 장비 수량");
     }
-    need(f.chargeCount > 0, "charges", "비용 항목 1개 이상 (무상 가능)");
+    if (f.contract) need(f.contract.priced, "contract", "계약 금액 (구축형: 단가·납부 방법 / 구독형: 밴드 월 단가)");
     need(filled(f.bizName), "bizName", "운영 법인명");
     need(filled(f.bizNo), "bizNo", "사업자등록번호");
     need(filled(f.bizCeo), "bizCeo", "대표자명");

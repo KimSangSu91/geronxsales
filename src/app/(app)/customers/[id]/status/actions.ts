@@ -156,7 +156,7 @@ async function createClosure(tx: Tx, customerId: string, type: "NOT_CONVERTED" |
     HUB: contract?.qtyHub ?? 0,
     BAND: contract?.qtyBand ?? 0,
     CHARGER: contract?.qtyCharger ?? 0,
-    ADAPTER: contract?.qtyAdapter ?? 0,
+    ADAPTER: 0, // 계약에는 어댑터 없음 (체험·추가 기기만)
   };
   for (const t of trials) {
     base.HUB += t.qtyHub;

@@ -1,6 +1,6 @@
 import "server-only";
-import { monthlyTotal } from "@/lib/billing";
-import { fromDbDate } from "@/lib/date";
+import { customerCostLines, monthlyTotalAt } from "@/lib/billing";
+import { fromDbDate, todayKst } from "@/lib/date";
 import { prisma } from "@/lib/prisma";
 
 export async function getCustomerDetail(id: string) {
@@ -10,16 +10,8 @@ export async function getCustomerDetail(id: string) {
       owner: { select: { id: true, name: true, isActive: true } },
       contacts: { orderBy: { createdAt: "asc" } },
       accounts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
-      contracts: {
-        where: { state: "CURRENT" },
-        take: 1,
-        select: {
-          endDate: true,
-          contractUsers: true,
-          charges: { where: { type: "MONTHLY", isFree: false }, select: { amount: true } },
-        },
-      },
-      options: { where: { chargeType: "MONTHLY", isFree: false }, select: { amount: true } },
+      contracts: { where: { state: "CURRENT" }, take: 1, include: { charges: true } },
+      options: true,
       // 진행 중인 회수·종료 체크리스트 (배너·기본 탭 판단)
       closures: { where: { completedAt: null }, select: { entries: { select: { done: true } } } },
       histories: {
@@ -36,7 +28,11 @@ export async function getCustomerDetail(id: string) {
   return {
     customer: c,
     contract: contract ? { endDate: fromDbDate(contract.endDate), contractUsers: contract.contractUsers } : null,
-    monthly: monthlyTotal(contract?.charges ?? [], c.options),
+    // 이번 달 청구 기준 월 비용
+    monthly: monthlyTotalAt(
+      customerCostLines({ contract: contract ?? null, charges: contract?.charges ?? [], options: c.options, extras: [] }),
+      todayKst().slice(0, 7),
+    ),
     lastActivity: c.histories[0] ? fromDbDate(c.histories[0].occurredOn) : null,
     openClosure: c.closures.length
       ? {

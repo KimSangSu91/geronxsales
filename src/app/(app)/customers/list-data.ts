@@ -1,8 +1,8 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { monthlyTotal } from "@/lib/billing";
+import { customerCostLines, monthlyTotalAt } from "@/lib/billing";
 import { prisma } from "@/lib/prisma";
-import { fromDbDate, kstStartOfDay, toDbDate, addDays } from "@/lib/date";
+import { addDays, fromDbDate, kstStartOfDay, todayKst, toDbDate } from "@/lib/date";
 import { CUSTOMER_STATUSES } from "@/lib/labels";
 import type { ListParams } from "./list-params";
 
@@ -72,18 +72,9 @@ export async function getCustomerList(p: ListParams) {
           orderBy: { createdAt: "asc" },
           select: { name: true, role: true, phone: true },
         },
-        contracts: {
-          where: { state: "CURRENT" },
-          take: 1,
-          select: {
-            endDate: true,
-            charges: { where: { type: "MONTHLY", isFree: false }, select: { amount: true } },
-          },
-        },
-        options: {
-          where: { chargeType: "MONTHLY", isFree: false },
-          select: { amount: true },
-        },
+        // 월 비용 계산용 (lib/billing.ts — 이번 달 기준)
+        contracts: { where: { state: "CURRENT" }, take: 1, include: { charges: true } },
+        options: true,
       },
     }),
   ]);
@@ -96,10 +87,14 @@ export async function getCustomerList(p: ListParams) {
   for (const g of grouped) counts[g.status] = g._count._all;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
 
-  // 계산 컬럼: 계약 종료일, 월 비용(현재 계약 월 비용 + 월 옵션상품, 공급가)
+  // 계산 컬럼: 계약 종료일, 월 비용(이번 달 청구 기준 — 구독료·분납·관리비·월 비용·월 옵션상품, 공급가)
+  const thisMonth = todayKst().slice(0, 7);
   const rows = customers.map((c) => {
     const contract = c.contracts[0];
-    const monthly = monthlyTotal(contract?.charges ?? [], c.options);
+    const monthly = monthlyTotalAt(
+      customerCostLines({ contract: contract ?? null, charges: contract?.charges ?? [], options: c.options, extras: [] }),
+      thisMonth,
+    );
     return {
       id: c.id,
       no: c.no,

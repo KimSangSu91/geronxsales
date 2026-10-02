@@ -73,9 +73,14 @@ enum AccountStatus {
   INACTIVE
 }
 
-enum BillingTiming {
-  PREPAID // 선불
-  POSTPAID // 후불
+enum ContractType {
+  PURCHASE // 구축형: 장비 구매(허브·밴드·충전기 단가 × 수량)
+  SUBSCRIPTION // 구독형: 밴드 월 단가 × 밴드 수
+}
+
+enum PurchasePayment {
+  LUMP_SUM // 일시납
+  INSTALLMENT // 분납(월)
 }
 
 enum ContractOrigin {
@@ -363,13 +368,24 @@ model Contract {
   startDate     DateTime       @db.Date
   endDate       DateTime       @db.Date
   contractUsers Int // 계약 인원
-  billingTiming BillingTiming  @default(POSTPAID)
-  autoRenew     Boolean        @default(true)
+  autoRenew       Boolean @default(true)
+  autoRenewMonths Int? // 자동연장 기간(개월) — 계약마다 다름 (6·12·24·직접입력)
 
+  // 제공 장비 (어댑터는 계약에서 제외)
   qtyHub        Int            @default(0)
   qtyBand       Int            @default(0)
   qtyCharger    Int            @default(0)
-  qtyAdapter    Int            @default(0)
+
+  // 계약 금액 (공급가, 원) — 비용 항목 표에 자동으로 정리됨 (lib/billing.ts)
+  contractType     ContractType @default(SUBSCRIPTION)
+  unitPriceHub     Int? // 구축형 허브 단가
+  unitPriceBand    Int? // 구축형: 밴드 단가 / 구독형: 밴드 월 단가
+  unitPriceCharger Int? // 구축형 충전기 단가
+  purchasePayment      PurchasePayment? // 구축형 납부 방법
+  purchaseBillingMonth DateTime? @db.Date // 일시납 청구월 / 분납 시작월 (해당 월 1일)
+  installmentMonths    Int? // 분납 개월 수
+  managementFee        Int? // 월 관리비 (선택, 두 유형 공통)
+  managementFeeStart   DateTime? @db.Date // 관리비 청구 시작월 (해당 월 1일)
 
   // 갱신 처리
   renewalCancelled      Boolean   @default(false) // 갱신 취소됨
