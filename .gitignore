@@ -46,3 +46,6 @@ next-env.d.ts
 # 원본 엑셀 (git에 올리지 않음)
 고객관리.xlsx
 *.xlsx
+
+.vercel
+.env*
