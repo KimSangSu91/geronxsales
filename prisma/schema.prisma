@@ -283,7 +283,7 @@ model Customer {
   serviceUrl String?
 
   // 도입 일정
-  meetingDate DateTime? @db.Date
+  meetingDate DateTime? @db.Date // 미사용 (2026-10-02 화면에서 제거, 미팅은 History 수동 기록)
   installDate DateTime? @db.Date // 설치(예정)일
 
   version   Int      @default(1)

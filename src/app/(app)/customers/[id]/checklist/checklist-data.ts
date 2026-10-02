@@ -38,7 +38,6 @@ export async function getChecklistData(customerId: string): Promise<ChecklistVie
     where: { id: customerId },
     select: {
       version: true,
-      meetingDate: true,
       installDate: true,
       checklist: {
         where: { closureId: null },
@@ -86,7 +85,6 @@ export async function getChecklistData(customerId: string): Promise<ChecklistVie
 
   return {
     version: c.version,
-    meetingDate: c.meetingDate ? fromDbDate(c.meetingDate) : "",
     installDate: c.installDate ? fromDbDate(c.installDate) : "",
     onboarding: c.checklist.map(toEntry),
     closures,

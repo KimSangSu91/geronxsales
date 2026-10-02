@@ -28,6 +28,7 @@ type Props = {
   name?: string; // form 전송용 hidden input
   className?: string;
   clearable?: boolean;
+  max?: string; // 이 날짜 이후는 선택 불가 ('YYYY-MM-DD')
 };
 
 export function DatePicker({
@@ -37,6 +38,7 @@ export function DatePicker({
   name,
   className,
   clearable = true,
+  max,
 }: Props) {
   const [open, setOpen] = useState(false);
   const selected = parse(value);
@@ -61,6 +63,7 @@ export function DatePicker({
             selected={selected}
             defaultMonth={selected}
             captionLayout="dropdown"
+            disabled={max ? { after: parse(max)! } : undefined}
             onSelect={(date) => {
               onChange(date ? format(date) : undefined);
               setOpen(false);

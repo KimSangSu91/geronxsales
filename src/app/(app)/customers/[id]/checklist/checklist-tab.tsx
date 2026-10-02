@@ -13,7 +13,7 @@ import { useUnsavedChanges } from "@/components/unsaved-changes";
 import { MISSING_REASONS, recoveryErrors, type RecoveryInput } from "@/lib/checklist-rules";
 import { formatDate } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { deactivateAllAccounts, saveRecovery, toggleEntry, updateSchedule } from "./actions";
+import { deactivateAllAccounts, saveRecovery, toggleEntry, updateEntryDate, updateInstallDate } from "./actions";
 import {
   CLOSURE_TYPE_LABEL,
   DEVICE_KIND_LABEL,
@@ -42,12 +42,16 @@ function EntryTable({
   entries,
   extra,
   onToggle,
+  onDateChange,
   pendingId,
+  today,
 }: {
   entries: EntryView[];
   extra?: (e: EntryView) => React.ReactNode;
   onToggle: (e: EntryView) => void;
+  onDateChange: (e: EntryView, date: string) => void;
   pendingId: string | null;
+  today: string;
 }) {
   const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
   return (
@@ -56,7 +60,7 @@ function EntryTable({
         <tr>
           <th className={cn(th, "w-12 text-center")}>완료</th>
           <th className={th}>항목</th>
-          <th className={cn(th, "w-32")}>완료일</th>
+          <th className={cn(th, "w-44")}>완료일</th>
           <th className={cn(th, "w-32")}>완료자</th>
           {extra && <th className={th} />}
         </tr>
@@ -78,7 +82,20 @@ function EntryTable({
               )}
             </td>
             <td className={cn("px-3 py-2.5", e.done && "text-muted-foreground")}>{e.label}</td>
-            <td className="px-3 py-2.5 tabular-nums">{e.doneOn ? formatDate(e.doneOn) : "-"}</td>
+            <td className="px-3 py-1.5 tabular-nums">
+              {/* 완료일은 실제 완료한 날로 수정 가능 (오늘 이후 불가) */}
+              {e.done && e.doneOn ? (
+                <DatePicker
+                  className="w-36"
+                  value={e.doneOn}
+                  max={today}
+                  clearable={false}
+                  onChange={(v) => v && v !== e.doneOn && onDateChange(e, v)}
+                />
+              ) : (
+                "-"
+              )}
+            </td>
             <td className="px-3 py-2.5">{e.doneBy ?? "-"}</td>
             {extra && <td className="px-3 py-2.5 text-right">{extra(e)}</td>}
           </tr>
@@ -103,6 +120,15 @@ function useToggle() {
     });
   };
   const onToggle = (e: EntryView) => (e.done ? setUnchecking(e) : run(e, true));
+  const onDateChange = (e: EntryView, date: string) => {
+    setPendingId(e.id);
+    startTransition(async () => {
+      const r = await updateEntryDate(e.id, date);
+      setPendingId(null);
+      if (r.ok) toast.success("완료일을 수정했습니다");
+      else toast.error(r.message ?? "수정하지 못했습니다.");
+    });
+  };
 
   const dialog = (
     <ConfirmDialog
@@ -118,22 +144,19 @@ function useToggle() {
       }}
     />
   );
-  return { pendingId, onToggle, dialog };
+  return { pendingId, onToggle, onDateChange, dialog };
 }
 
-function OnboardingCard({ customerId, data }: { customerId: string; data: ChecklistView }) {
+function OnboardingCard({ customerId, data, today }: { customerId: string; data: ChecklistView; today: string }) {
   const router = useRouter();
-  const { pendingId, onToggle, dialog } = useToggle();
+  const { pendingId, onToggle, onDateChange, dialog } = useToggle();
   const [saving, startTransition] = useTransition();
   const doneCount = data.onboarding.filter((e) => e.done).length;
 
-  const saveDate = (key: "meetingDate" | "installDate", value: string) => {
+  const saveInstallDate = (value: string) => {
     startTransition(async () => {
-      const r = await updateSchedule(customerId, data.version, {
-        meetingDate: key === "meetingDate" ? value : data.meetingDate,
-        installDate: key === "installDate" ? value : data.installDate,
-      });
-      if (r.ok) toast.success("일정을 저장했습니다");
+      const r = await updateInstallDate(customerId, data.version, value);
+      if (r.ok) toast.success("설치 예정일을 저장했습니다");
       else {
         toast.error(r.message ?? "저장하지 못했습니다.");
         if (r.conflict) router.refresh();
@@ -149,12 +172,8 @@ function OnboardingCard({ customerId, data }: { customerId: string; data: Checkl
       </div>
       <div className="flex flex-wrap items-center gap-4 border-b px-5 py-3 text-sm">
         <label className="flex items-center gap-2">
-          <span className="text-muted-foreground">미팅일</span>
-          <DatePicker className="w-40" value={data.meetingDate || undefined} onChange={(v) => saveDate("meetingDate", v ?? "")} />
-        </label>
-        <label className="flex items-center gap-2">
           <span className="text-muted-foreground">설치 예정일</span>
-          <DatePicker className="w-40" value={data.installDate || undefined} onChange={(v) => saveDate("installDate", v ?? "")} />
+          <DatePicker className="w-40" value={data.installDate || undefined} onChange={(v) => saveInstallDate(v ?? "")} />
         </label>
         {saving && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
       </div>
@@ -166,7 +185,9 @@ function OnboardingCard({ customerId, data }: { customerId: string; data: Checkl
             e.code === "account_created" ? { ...e, label: `${e.label} (등록 계정 ${data.accounts.total}개)` } : e,
           )}
           onToggle={onToggle}
+          onDateChange={onDateChange}
           pendingId={pendingId}
+          today={today}
         />
       )}
       {dialog}
@@ -313,7 +334,7 @@ function ClosureCard({
   inUseAccounts: string[];
   today: string;
 }) {
-  const { pendingId, onToggle, dialog } = useToggle();
+  const { pendingId, onToggle, onDateChange, dialog } = useToggle();
   const [openRecovery, setOpenRecovery] = useState(false);
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -355,7 +376,14 @@ function ClosureCard({
         </h3>
         <Progress done={doneCount} total={closure.entries.length} />
       </div>
-      <EntryTable entries={closure.entries} extra={extra} onToggle={onToggle} pendingId={pendingId} />
+      <EntryTable
+        entries={closure.entries}
+        extra={extra}
+        onToggle={onToggle}
+        onDateChange={onDateChange}
+        pendingId={pendingId}
+        today={today}
+      />
       {openRecovery && <RecoveryPanel closure={closure} today={today} />}
       {dialog}
       <ConfirmDialog
@@ -385,7 +413,7 @@ export function ChecklistTab({ customerId, data, today }: { customerId: string; 
   const closureCard = (c: ClosureView) => (
     <ClosureCard key={c.id} customerId={customerId} closure={c} inUseAccounts={data.accounts.inUse} today={today} />
   );
-  const onboarding = <OnboardingCard customerId={customerId} data={data} />;
+  const onboarding = <OnboardingCard customerId={customerId} data={data} today={today} />;
 
   return (
     <div className="flex flex-col gap-4">

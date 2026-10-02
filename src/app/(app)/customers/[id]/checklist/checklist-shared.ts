@@ -31,7 +31,6 @@ export type ClosureView = {
 
 export type ChecklistView = {
   version: number; // 고객사 version (일정 수정 충돌 검사)
-  meetingDate: string;
   installDate: string;
   onboarding: EntryView[];
   closures: ClosureView[];

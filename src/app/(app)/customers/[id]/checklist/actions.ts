@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { recoveryErrors, recoveryIncompleteReason, type RecoveryInput } from "@/lib/checklist-rules";
-import { formatDate, fromDbDate, isDateString, todayKst, toDbDate } from "@/lib/date";
+import { formatDate, formatDateTimeKst, fromDbDate, isDateString, kstStartOfDay, todayKst, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
 import { ConflictError, saveWithVersion } from "@/lib/optimistic";
 import { prisma } from "@/lib/prisma";
@@ -58,55 +58,61 @@ export async function toggleEntry(entryId: string, checked: boolean): Promise<Re
   return done(e.customerId);
 }
 
-// 도입 일정(미팅일·설치 예정일) — 고객사 정보 수정이므로 version 충돌 검사
-export async function updateSchedule(
-  customerId: string,
-  version: number,
-  input: { meetingDate: string; installDate: string },
-): Promise<Result> {
+// 완료일 수정 — 실제 완료한 날보다 늦게 체크한 경우 (오늘 이후 날짜 불가), 완료자는 유지
+export async function updateEntryDate(entryId: string, date: string): Promise<Result> {
   const user = await requireUser();
-  for (const [k, v] of Object.entries(input)) {
-    if (v && !isDateString(v)) return { ok: false, errors: { [k]: "날짜를 다시 선택하세요." } };
-  }
-  const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { meetingDate: true, installDate: true } });
+  if (!isDateString(date)) return { ok: false, message: "날짜를 다시 선택하세요." };
+  if (date > todayKst()) return { ok: false, message: "완료일은 오늘 이후로 지정할 수 없습니다." };
+  const e = await prisma.checklistEntry.findUnique({ where: { id: entryId }, include: { item: true } });
+  if (!e) return { ok: false, message: "항목을 찾을 수 없습니다. 새로고침하세요." };
+  if (!e.done || !e.doneAt) return { ok: false, message: "완료된 항목만 완료일을 바꿀 수 있습니다." };
+
+  const before = formatDateTimeKst(e.doneAt).slice(0, 10);
+  if (before === date) return { ok: true };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.checklistEntry.update({ where: { id: entryId }, data: { doneAt: kstStartOfDay(date) } });
+    await recordHistory(tx, {
+      customerId: e.customerId,
+      event: "checklist_date_changed",
+      content: `${e.closureId ? "회수·종료" : "도입"} 체크리스트 완료일 수정: ${e.item.label} ${formatDate(before)} → ${formatDate(date)}`,
+      actorId: user.id,
+    });
+  });
+  return done(e.customerId);
+}
+
+// 설치 예정일 — 고객사 정보 수정이므로 version 충돌 검사
+export async function updateInstallDate(customerId: string, version: number, installDate: string): Promise<Result> {
+  const user = await requireUser();
+  if (installDate && !isDateString(installDate)) return { ok: false, message: "날짜를 다시 선택하세요." };
+  const c = await prisma.customer.findUnique({ where: { id: customerId }, select: { installDate: true } });
   if (!c) return { ok: false, message: "고객사를 찾을 수 없습니다." };
 
+  const before = c.installDate ? fromDbDate(c.installDate) : "";
+  if (before === installDate) return { ok: true };
   const show = (d: string) => (d ? formatDate(d) : "-");
-  const before = { meetingDate: c.meetingDate ? fromDbDate(c.meetingDate) : "", installDate: c.installDate ? fromDbDate(c.installDate) : "" };
-  const changes = (
-    [
-      ["meetingDate", "미팅일"],
-      ["installDate", "설치 예정일"],
-    ] as const
-  )
-    .filter(([k]) => before[k] !== input[k])
-    .map(([k, label]) => `${label} ${show(before[k])} → ${show(input[k])}`);
-  if (!changes.length) return { ok: true };
 
   try {
     await prisma.$transaction(async (tx) => {
       await saveWithVersion(() =>
         tx.customer.updateMany({
           where: { id: customerId, version },
-          data: {
-            meetingDate: input.meetingDate ? toDbDate(input.meetingDate) : null,
-            installDate: input.installDate ? toDbDate(input.installDate) : null,
-            version: { increment: 1 },
-          },
+          data: { installDate: installDate ? toDbDate(installDate) : null, version: { increment: 1 } },
         }),
       );
       await recordHistory(tx, {
         customerId,
         event: "schedule_updated",
-        content: `도입 일정 수정: ${changes.join(", ")}`,
+        content: `설치 예정일 수정: ${show(before)} → ${show(installDate)}`,
         actorId: user.id,
       });
     });
-  } catch (e) {
-    if (e instanceof ConflictError) {
+  } catch (err) {
+    if (err instanceof ConflictError) {
       return { ok: false, conflict: true, message: "다른 사용자가 먼저 고객사 정보를 수정했습니다. 새로고침 후 다시 입력하세요." };
     }
-    throw e;
+    throw err;
   }
   return done(customerId);
 }
