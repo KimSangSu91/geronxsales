@@ -33,6 +33,7 @@ const LABELS: Partial<Record<keyof ContractInput, string>> = {
   qtyBand: "밴드",
   qtyCharger: "충전기",
   contractType: "유형",
+  joinFee: "가입비",
   unitPriceHub: "허브 단가",
   unitPriceBand: "밴드 단가",
   unitPriceCharger: "충전기 단가",
@@ -151,6 +152,16 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
           </span>
         </Item>
       )}
+      <Item label="가입비" wide>
+        {c.joinFee ? (
+          <>
+            <Won v={price(c.joinFee)} />
+            <span className="ml-2 text-muted-foreground">1회 · 청구 {c.startDate.slice(0, 7).replace("-", ".")} (계약 시작월)</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">없음</span>
+        )}
+      </Item>
       <Item label="월 관리비" wide>
         {c.managementFee ? (
           <>
@@ -358,30 +369,53 @@ function ContractForm({
         )}
       </div>
 
-      {/* ⑤ 관리비 */}
+      {/* ⑤ 가입비 · 관리비 (두 유형 공통) */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field
+          label="가입비 (선택)"
+          error={errors.joinFee}
+          hint={<span className="text-xs text-muted-foreground">1회성 · 계약 시작월(첫 달)에만 청구</span>}
+        >
+          <MoneyInput value={form.joinFee} onChange={(v) => set({ joinFee: v })} invalid={!!errors.joinFee} />
+        </Field>
+        <div />
         <Field label="월 관리비 (선택)" error={errors.managementFee} hint={<span className="text-xs text-muted-foreground">없으면 비워 두세요</span>}>
           <MoneyInput value={form.managementFee} onChange={(v) => set({ managementFee: v, managementFeeStart: form.managementFeeStart || startYm })} invalid={!!errors.managementFee} />
         </Field>
-        {price(form.managementFee) > 0 && (
-          <Field label="관리비 청구 시작월" required error={errors.managementFeeStart}>
-            <MonthPicker value={form.managementFeeStart || undefined} onChange={(v) => set({ managementFeeStart: v ?? "" })} invalid={!!errors.managementFeeStart} />
-            {startYm && (
-              <span className="flex gap-1">
-                {[0, 12, 24].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => set({ managementFeeStart: addMonthsYm(startYm, m) })}
-                    className="rounded-full border px-2 py-0.5 text-xs hover:bg-muted"
-                  >
-                    {m === 0 ? "계약 시작월" : `${m / 12}년 후`}
-                  </button>
-                ))}
+        <Field label="관리비 청구 시작월" required={price(form.managementFee) > 0} error={errors.managementFeeStart}>
+          <MonthPicker value={form.managementFeeStart || undefined} onChange={(v) => set({ managementFeeStart: v ?? "" })} invalid={!!errors.managementFeeStart} />
+          {startYm && (
+            <div className="flex flex-wrap items-center gap-1">
+              {[0, 6, 12, 24].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => set({ managementFeeStart: addMonthsYm(startYm, m) })}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-xs",
+                    form.managementFeeStart === addMonthsYm(startYm, m) ? "border-foreground bg-foreground text-background" : "hover:bg-muted",
+                  )}
+                >
+                  {m === 0 ? "계약 시작월" : m % 12 === 0 ? `${m / 12}년 후` : `${m}개월 후`}
+                </button>
+              ))}
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                계약 시작
+                <Input
+                  className="h-6 w-12 px-1 text-xs"
+                  inputMode="numeric"
+                  placeholder="n"
+                  onChange={(e) => {
+                    const m = Number(e.target.value);
+                    if (/^d+$/.test(e.target.value) && m <= 120) set({ managementFeeStart: addMonthsYm(startYm, m) });
+                  }}
+                />
+                개월 후
               </span>
-            )}
-          </Field>
-        )}
+            </div>
+          )}
+          {!startYm && <span className="text-xs text-muted-foreground">계약 시작일을 먼저 고르면 빠른 선택 버튼이 나옵니다</span>}
+        </Field>
       </div>
 
       <Field label="메모">

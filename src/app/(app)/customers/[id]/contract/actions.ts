@@ -74,6 +74,10 @@ function contractData(c: ContractInput) {
     qtyBand: n(c.qtyBand),
     qtyCharger: n(c.qtyCharger),
     contractType: c.contractType,
+    joinFee: (() => {
+      const j = amount(c.joinFee);
+      return j && j > 0 ? j : null;
+    })(),
     // 구독형은 밴드 월 단가만 사용
     unitPriceHub: purchase ? amount(c.unitPriceHub) : null,
     unitPriceBand: amount(c.unitPriceBand),
@@ -98,6 +102,7 @@ const CONTRACT_LABELS: Partial<Record<keyof ContractInput, string>> = {
   qtyBand: "밴드",
   qtyCharger: "충전기",
   contractType: "유형",
+  joinFee: "가입비",
   unitPriceHub: "허브 단가",
   unitPriceBand: "밴드 단가",
   unitPriceCharger: "충전기 단가",

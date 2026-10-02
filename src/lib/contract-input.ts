@@ -34,6 +34,7 @@ export type ContractInput = {
   qtyBand: string;
   qtyCharger: string;
   contractType: "PURCHASE" | "SUBSCRIPTION";
+  joinFee: string; // 가입비 (선택, 1회성 — 계약 시작월 청구)
   unitPriceHub: string; // 금액 입력은 쉼표 포함 문자열
   unitPriceBand: string; // 구축형: 밴드 단가 / 구독형: 밴드 월 단가
   unitPriceCharger: string;
@@ -56,6 +57,7 @@ export const emptyContract = (): ContractInput => ({
   qtyBand: "",
   qtyCharger: "",
   contractType: "SUBSCRIPTION",
+  joinFee: "",
   unitPriceHub: "",
   unitPriceBand: "",
   unitPriceCharger: "",
@@ -105,6 +107,8 @@ export function validateContract(c: ContractInput): FieldErrors {
     if (qtyOf(c.qtyBand) <= 0) e.qtyBand = "구독형은 밴드 수량이 필요합니다.";
     if (!priceOk(c.unitPriceBand)) e.unitPriceBand = "밴드 월 단가를 입력하세요.";
   }
+
+  if (c.joinFee.trim() && Number.isNaN(parseAmount(c.joinFee))) e.joinFee = "금액을 숫자로 입력하세요.";
 
   if (c.managementFee.trim()) {
     const fee = parseAmount(c.managementFee);

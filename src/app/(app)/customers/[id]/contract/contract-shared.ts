@@ -18,6 +18,7 @@ export function contractInputOf(c: {
   qtyBand: number;
   qtyCharger: number;
   contractType: "PURCHASE" | "SUBSCRIPTION";
+  joinFee: number | null;
   unitPriceHub: number | null;
   unitPriceBand: number | null;
   unitPriceCharger: number | null;
@@ -40,6 +41,7 @@ export function contractInputOf(c: {
     qtyBand: String(c.qtyBand),
     qtyCharger: String(c.qtyCharger),
     contractType: c.contractType,
+    joinFee: c.joinFee ? formatWon(c.joinFee) : "",
     unitPriceHub: price(c.unitPriceHub),
     unitPriceBand: price(c.unitPriceBand),
     unitPriceCharger: price(c.unitPriceCharger),

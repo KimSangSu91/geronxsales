@@ -19,6 +19,7 @@ export type ContractPricing = {
   installmentMonths: number | null;
   managementFee: number | null;
   managementFeeStart: string | null; // 'YYYY-MM'
+  joinFee: number | null; // 가입비 (1회성, 계약 시작월)
 };
 
 export type CostLine = {
@@ -61,6 +62,7 @@ export function contractPricingOf(c: {
   installmentMonths: number | null;
   managementFee: number | null;
   managementFeeStart: DateOrNull;
+  joinFee: number | null;
 }): ContractPricing {
   return {
     ...c,
@@ -87,6 +89,21 @@ export function contractLines(p: ContractPricing): CostLine[] {
   const start = ym(p.startDate);
   const end = ym(p.endDate);
   const base = { source: "CONTRACT" as const, isFree: false };
+
+  // 가입비: 1회성, 첫 달(계약 시작월) 매출에만 포함
+  if (p.joinFee && p.joinFee > 0) {
+    lines.push({
+      ...base,
+      key: "contract-join",
+      label: "가입비",
+      detail: "",
+      type: "ONE_TIME",
+      amount: p.joinFee,
+      billingMonth: start,
+      fromMonth: null,
+      toMonth: null,
+    });
+  }
 
   if (p.contractType === "PURCHASE") {
     const total = purchaseTotal(p);

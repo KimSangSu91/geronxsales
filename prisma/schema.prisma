@@ -378,6 +378,7 @@ model Contract {
 
   // 계약 금액 (공급가, 원) — 비용 항목 표에 자동으로 정리됨 (lib/billing.ts)
   contractType     ContractType @default(SUBSCRIPTION)
+  joinFee          Int? // 가입비 (1회성, 계약 시작월에 청구) — 두 유형 공통
   unitPriceHub     Int? // 구축형 허브 단가
   unitPriceBand    Int? // 구축형: 밴드 단가 / 구독형: 밴드 월 단가
   unitPriceCharger Int? // 구축형 충전기 단가
