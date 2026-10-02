@@ -20,6 +20,8 @@ export async function getCustomerDetail(id: string) {
         },
       },
       options: { where: { chargeType: "MONTHLY", isFree: false }, select: { amount: true } },
+      // 진행 중인 회수·종료 체크리스트 (배너·기본 탭 판단)
+      closures: { where: { completedAt: null }, select: { entries: { select: { done: true } } } },
       histories: {
         where: { kind: "MANUAL" },
         orderBy: { occurredOn: "desc" },
@@ -36,6 +38,12 @@ export async function getCustomerDetail(id: string) {
     contract: contract ? { endDate: fromDbDate(contract.endDate), contractUsers: contract.contractUsers } : null,
     monthly: monthlyTotal(contract?.charges ?? [], c.options),
     lastActivity: c.histories[0] ? fromDbDate(c.histories[0].occurredOn) : null,
+    openClosure: c.closures.length
+      ? {
+          done: c.closures.flatMap((x) => x.entries).filter((e) => e.done).length,
+          total: c.closures.flatMap((x) => x.entries).length,
+        }
+      : null,
   };
 }
 

@@ -9,6 +9,8 @@ import { todayKst } from "@/lib/date";
 import { FACILITY_TYPE_LABEL, INBOUND_CHANNEL_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { getChecklistData } from "./checklist/checklist-data";
+import { ChecklistTab } from "./checklist/checklist-tab";
 import { getCustomerDetail } from "./detail-data";
 import { getStatusFacts } from "./status/status-data";
 import { StatusChanger } from "./status/status-changer";
@@ -34,15 +36,20 @@ type TabKey = (typeof TABS)[number]["key"];
 const NOT_READY: Partial<Record<TabKey, string>> = {
   contract: "2단계",
   billing: "3단계",
-  checklist: "1단계 체크리스트 작업",
   documents: "2단계",
   devices: "2단계",
 };
 
 // 처음 열리는 탭 (화면정의서 3-5) — 아직 없는 탭이면 기본정보
-function defaultTab(status: CustomerStatus): TabKey {
+// 미전환·계약종료·계약해지·기타는 회수·종료 체크리스트가 미완료면 체크리스트
+function defaultTab(status: CustomerStatus, hasOpenClosure: boolean): TabKey {
+  const closing = ["NOT_CONVERTED", "ENDED", "TERMINATED", "OTHER"].includes(status);
   const preferred: TabKey =
-    status === "ONBOARDING" ? "checklist" : status === "TRIAL" || status === "ACTIVE" ? "contract" : "info";
+    status === "ONBOARDING" || (closing && hasOpenClosure)
+      ? "checklist"
+      : status === "TRIAL" || status === "ACTIVE"
+        ? "contract"
+        : "info";
   return NOT_READY[preferred] ? "info" : preferred;
 }
 
@@ -58,14 +65,15 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const c = detail.customer;
 
   const tabParam = typeof sp.tab === "string" ? sp.tab : undefined;
-  const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : defaultTab(c.status);
+  const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : defaultTab(c.status, !!detail.openClosure);
   const today = todayKst();
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
-  const [recent, historyPage, statusFacts] = await Promise.all([
+  const [recent, historyPage, statusFacts, checklist] = await Promise.all([
     tab === "history" ? null : getRecentHistory(c.id, user.id),
     tab === "history" ? getHistoryPage(c.id, user.id, historyFilters) : null,
     getStatusFacts(prisma, c.id),
+    tab === "checklist" ? getChecklistData(c.id) : null,
   ]);
 
   const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
@@ -78,6 +86,13 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
 
   // 안내 배너 (화면정의서 3-3) — 나머지 배너는 해당 기능 구현 시 추가
   const banners: { tone: "warn"; text: string; action?: { label: string; href: string } }[] = [];
+  if (detail.openClosure) {
+    banners.push({
+      tone: "warn",
+      text: `장비 회수 등 종료 처리가 완료되지 않았습니다. (${detail.openClosure.done}/${detail.openClosure.total})`,
+      action: { label: "체크리스트 탭으로", href: `${base}?tab=checklist` },
+    });
+  }
   if (!c.owner.isActive) {
     banners.push({
       tone: "warn",
@@ -190,6 +205,8 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
           <div className="min-w-0 flex-1">
             {tab === "info" ? (
               <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
+            ) : tab === "checklist" && checklist ? (
+              <ChecklistTab customerId={c.id} data={checklist} today={today} />
             ) : tab === "history" && historyPage ? (
               <HistoryTab
                 customerId={c.id}
