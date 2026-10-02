@@ -5,7 +5,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { UnsavedChangesProvider } from "@/components/unsaved-changes";
 import type { CustomerStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
-import { todayKst } from "@/lib/date";
+import { formatDate, todayKst } from "@/lib/date";
+import { renewalBadge, trialBadge } from "@/lib/renewal";
+import { getAlertDays } from "@/lib/settings";
+import { AlertBadge } from "@/components/alert-badge";
 import { FACILITY_TYPE_LABEL, INBOUND_CHANNEL_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -69,6 +72,11 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
   const tabParam = typeof sp.tab === "string" ? sp.tab : undefined;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : defaultTab(c.status, !!detail.openClosure);
   const today = todayKst();
+  // 갱신·체험 배지 (저장하지 않고 계산 — lib/renewal.ts)
+  const alertDays = await getAlertDays();
+  const rBadge = renewalBadge(c.status, detail.renewalFacts, today, alertDays.renewal);
+  const tBadge = trialBadge(c.status, detail.trial, today, alertDays.trial);
+  const openParam = typeof sp.open === "string" ? sp.open : undefined;
   // 히스토리 탭에서는 우측 패널을 숨김(중복 표시 방지), 그 외에는 최근 10건
   const historyFilters = parseHistoryFilters(sp);
   const [recent, historyPage, statusFacts, checklist, contractData, documentsData] = await Promise.all([
@@ -100,6 +108,20 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
         action: { label: "문서 탭으로", href: `${base}?tab=documents` },
       });
     }
+  }
+  if (rBadge === "RENEWAL_CANCELLED" && detail.renewalFacts) {
+    banners.push({
+      tone: "warn",
+      text: `${formatDate(detail.renewalFacts.endDate)}에 계약이 종료됩니다.`,
+      action: { label: "계약 기간 변경", href: `${base}?tab=contract&open=renewal` },
+    });
+  }
+  if (rBadge === "AUTO_RENEW_UNCONFIRMED") {
+    banners.push({
+      tone: "danger",
+      text: "계약이 동일 조건으로 자동연장되었습니다. 확인이 필요합니다.",
+      action: { label: "확인하기", href: `${base}?tab=contract&open=renewal` },
+    });
   }
   if (detail.openClosure) {
     banners.push({
@@ -142,6 +164,8 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
                 · {c.region}
               </span>
               <StatusChanger customerId={c.id} status={c.status} facts={statusFacts!} today={today} />
+              {rBadge && <AlertBadge kind={rBadge} href={`${base}?tab=contract&open=renewal`} />}
+              {tBadge && <AlertBadge kind={tBadge} href={`${base}?tab=contract&open=trial`} />}
             </div>
           </div>
           {serviceUrl ? (
@@ -224,7 +248,16 @@ export default async function CustomerDetailPage({ params, searchParams }: PageP
             {tab === "info" ? (
               <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
             ) : tab === "contract" && contractData ? (
-              <ContractTab customerId={c.id} status={c.status} data={contractData} today={today} />
+              <ContractTab
+                key={openParam ?? "none"}
+                customerId={c.id}
+                status={c.status}
+                data={contractData}
+                today={today}
+                renewalBadge={rBadge}
+                trialBadge={tBadge}
+                openDialog={openParam === "renewal" || openParam === "trial" ? openParam : undefined}
+              />
             ) : tab === "documents" && documentsData ? (
               <DocumentsTab customerId={c.id} data={documentsData} />
             ) : tab === "checklist" && checklist ? (

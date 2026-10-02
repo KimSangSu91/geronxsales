@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink } from "lucide-react";
 import type { ContactRole, CustomerStatus, FacilityType } from "@/generated/prisma/enums";
+import { AlertBadge } from "@/components/alert-badge";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
+import type { BadgeKind } from "@/lib/renewal";
 import { dDayLabel, formatDate } from "@/lib/date";
 import { CONTACT_ROLE_LABEL, FACILITY_TYPE_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
@@ -27,6 +29,7 @@ export type TableRow = {
   primaryCount: number;
   endDate: string | null;
   monthly: number | null;
+  badges: BadgeKind[];
 };
 
 type Props = { rows: TableRow[]; params: ListParams; today: string; resetHref: string };
@@ -93,8 +96,14 @@ export function CustomerTable({ rows, params, today, resetHref }: Props) {
                 {r.code && <p className="text-xs text-muted-foreground">{r.code}</p>}
               </td>
               <td className={td}><CustomerStatusBadge status={r.status} /></td>
-              {/* 알림 배지는 3단계(알림)에서 표시 */}
-              <td className={td} />
+              {/* 알림 배지: 아이콘만, 마우스를 올리면 내용 (나머지 알림 종류는 3단계) */}
+              <td className={td}>
+                <span className="flex gap-1">
+                  {r.badges.map((b) => (
+                    <AlertBadge key={b} kind={b} compact />
+                  ))}
+                </span>
+              </td>
               <td className={cn(td, "whitespace-nowrap")}>
                 {r.facilityType === "OTHER" && r.facilityTypeOther
                   ? r.facilityTypeOther

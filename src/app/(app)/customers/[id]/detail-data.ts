@@ -12,6 +12,8 @@ export async function getCustomerDetail(id: string) {
       accounts: { orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       contracts: { where: { state: "CURRENT" }, take: 1, include: { charges: true } },
       options: true,
+      // 진행 중인 체험 (체험 종료 배지)
+      trials: { where: { result: "IN_PROGRESS" }, orderBy: { createdAt: "desc" }, take: 1 },
       // 진행 중인 회수·종료 체크리스트 (배너·기본 탭 판단)
       closures: { where: { completedAt: null }, select: { entries: { select: { done: true } } } },
       histories: {
@@ -34,6 +36,15 @@ export async function getCustomerDetail(id: string) {
       todayKst().slice(0, 7),
     ),
     lastActivity: c.histories[0] ? fromDbDate(c.histories[0].occurredOn) : null,
+    trial: c.trials[0] ? { id: c.trials[0].id, startDate: fromDbDate(c.trials[0].startDate), endDate: fromDbDate(c.trials[0].endDate) } : null,
+    renewalFacts: contract
+      ? {
+          endDate: fromDbDate(contract.endDate),
+          renewalCancelled: contract.renewalCancelled,
+          origin: contract.origin,
+          autoRenewConfirmed: !!contract.autoRenewConfirmedAt,
+        }
+      : null,
     openClosure: c.closures.length
       ? {
           done: c.closures.flatMap((x) => x.entries).filter((e) => e.done).length,

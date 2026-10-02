@@ -19,7 +19,10 @@ import { addDays, addMonths, dDayLabel, formatDate } from "@/lib/date";
 import { CONTRACT_TYPE_LABEL, PURCHASE_PAYMENT_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { AlertBadge } from "@/components/alert-badge";
+import type { BadgeKind } from "@/lib/renewal";
 import { createContract, updateContract, type Conflict } from "./actions";
+import { RenewalDialog } from "./renewal-dialog";
 import type { ContractView } from "./contract-shared";
 
 const LABELS: Partial<Record<keyof ContractInput, string>> = {
@@ -181,8 +184,8 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
   );
 }
 
-// 계약 등록·수정 폼 본문
-function ContractForm({
+// 계약 등록·수정·갱신(변경 있음) 폼 본문
+export function ContractForm({
   form,
   set,
   errors,
@@ -430,12 +433,17 @@ export function ContractCard({
   contract,
   excelNote,
   today,
+  badge,
+  openRenewal = false,
 }: {
   customerId: string;
   contract: ContractView | null;
   excelNote: string | null;
   today: string;
+  badge: BadgeKind | null; // 갱신 배지
+  openRenewal?: boolean; // 배너·배지에서 바로 갱신 창 열기
 }) {
+  const [renewing, setRenewing] = useState(openRenewal && !!contract);
   const [editing, setEditing] = useState<{ version?: number; base: ContractInput } | null>(null);
   const [form, setForm] = useState<ContractInput>(emptyContract());
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -475,7 +483,10 @@ export function ContractCard({
   return (
     <section className="rounded-lg border bg-background">
       <div className="flex items-center justify-between border-b px-5 py-3">
-        <h3 className="font-semibold">계약 내용</h3>
+        <h3 className="flex items-center gap-2 font-semibold">
+          계약 내용
+          {badge && <AlertBadge kind={badge} onClick={() => setRenewing(true)} />}
+        </h3>
         <div className="flex gap-1">
           {contract && (
             <Button variant="ghost" size="sm" onClick={open}>
@@ -483,8 +494,14 @@ export function ContractCard({
               수정
             </Button>
           )}
-          {/* 계약 갱신은 다음 작업(갱신)에서 연결 */}
-          <Button variant="ghost" size="sm" disabled title="계약 갱신은 다음 작업에서 구현">
+          {/* [계약 갱신]은 항상 노출, 배지 상태일 때 강조 (화면정의서 4-2) */}
+          <Button
+            variant={badge ? "default" : "ghost"}
+            size="sm"
+            disabled={!contract}
+            title={contract ? undefined : "계약을 먼저 등록하세요"}
+            onClick={() => setRenewing(true)}
+          >
             <RefreshCw />
             계약 갱신
           </Button>
@@ -524,6 +541,10 @@ export function ContractCard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {contract && (
+        <RenewalDialog contract={contract} badge={badge} open={renewing} onOpenChange={setRenewing} today={today} />
+      )}
 
       <ConflictDialog
         conflict={conflict}

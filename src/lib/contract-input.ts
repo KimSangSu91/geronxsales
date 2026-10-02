@@ -1,7 +1,7 @@
 // 계약·비용 입력값 검사 — 화면·서버 공용 (기능정의서 4-4)
 // 금액은 공급가(원, 정수). 무상이면 0원 + 무상 사유 필수 (기능정의서 공통 UI 원칙)
 import type { FieldErrors } from "@/lib/customer-input";
-import { isDateString } from "@/lib/date";
+import { isDateString, toDbDate } from "@/lib/date";
 import {
   CHARGE_TYPE_LABEL,
   DEVICE_KIND_LABEL,
@@ -234,4 +234,42 @@ export function validateExtraDevice(x: ExtraDeviceInput): FieldErrors {
   // 추가 기기는 일시 비용
   validatePrice(x, true, e);
   return e;
+}
+
+// ───────── 저장값 변환 ─────────
+const qtyNum = (v: string) => (v.trim() ? Number(v) : 0);
+const monthDate = (ym: string) => (ym ? toDbDate(`${ym}-01`) : null);
+
+// 계약 입력값 → DB 저장값 (등록·수정·갱신 공용)
+export function contractDataOf(c: ContractInput) {
+  const purchase = c.contractType === "PURCHASE";
+  const installment = purchase && c.purchasePayment === "INSTALLMENT";
+  const amount = (v: string) => (v.trim() ? parseAmount(v) : null);
+  const fee = amount(c.managementFee);
+  return {
+    contractDate: toDbDate(c.contractDate),
+    startDate: toDbDate(c.startDate),
+    endDate: toDbDate(c.endDate),
+    contractUsers: Number(c.contractUsers),
+    autoRenew: c.autoRenew === "yes",
+    autoRenewMonths: c.autoRenew === "yes" ? Number(c.autoRenewMonths) : null,
+    qtyHub: qtyNum(c.qtyHub),
+    qtyBand: qtyNum(c.qtyBand),
+    qtyCharger: qtyNum(c.qtyCharger),
+    contractType: c.contractType,
+    joinFee: (() => {
+      const j = amount(c.joinFee);
+      return j && j > 0 ? j : null;
+    })(),
+    // 구독형은 밴드 월 단가만 사용
+    unitPriceHub: purchase ? amount(c.unitPriceHub) : null,
+    unitPriceBand: amount(c.unitPriceBand),
+    unitPriceCharger: purchase ? amount(c.unitPriceCharger) : null,
+    purchasePayment: purchase ? c.purchasePayment : null,
+    purchaseBillingMonth: purchase ? monthDate(c.purchaseBillingMonth) : null,
+    installmentMonths: installment ? Number(c.installmentMonths) : null,
+    managementFee: fee && fee > 0 ? fee : null,
+    managementFeeStart: fee && fee > 0 ? monthDate(c.managementFeeStart) : null,
+    memo: c.memo.trim() || null,
+  };
 }

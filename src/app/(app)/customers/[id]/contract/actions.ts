@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import {
+  contractDataOf,
   parseAmount,
   validateCharge,
   validateContract,
@@ -38,7 +39,6 @@ export type Result<T = never> =
 
 const CHECK = "입력 내용을 확인하세요.";
 const text = (v: string) => v.trim() || null;
-const n = (v: string) => (v.trim() ? Number(v) : 0);
 const month = (ym: string) => (ym ? toDbDate(`${ym}-01`) : null);
 const monthText = (d: Date) => fromDbDate(d).slice(0, 7).replace("-", ".");
 const price = (amount: number, isFree: boolean) => (isFree ? "무상" : `${formatWon(amount)}원`);
@@ -57,39 +57,6 @@ function diff<T extends Record<string, unknown>>(before: T, after: T, labels: Pa
 }
 
 // ───────── 계약 ─────────
-
-function contractData(c: ContractInput) {
-  const purchase = c.contractType === "PURCHASE";
-  const installment = purchase && c.purchasePayment === "INSTALLMENT";
-  const amount = (v: string) => (v.trim() ? parseAmount(v) : null);
-  const fee = amount(c.managementFee);
-  return {
-    contractDate: toDbDate(c.contractDate),
-    startDate: toDbDate(c.startDate),
-    endDate: toDbDate(c.endDate),
-    contractUsers: Number(c.contractUsers),
-    autoRenew: c.autoRenew === "yes",
-    autoRenewMonths: c.autoRenew === "yes" ? Number(c.autoRenewMonths) : null,
-    qtyHub: n(c.qtyHub),
-    qtyBand: n(c.qtyBand),
-    qtyCharger: n(c.qtyCharger),
-    contractType: c.contractType,
-    joinFee: (() => {
-      const j = amount(c.joinFee);
-      return j && j > 0 ? j : null;
-    })(),
-    // 구독형은 밴드 월 단가만 사용
-    unitPriceHub: purchase ? amount(c.unitPriceHub) : null,
-    unitPriceBand: amount(c.unitPriceBand),
-    unitPriceCharger: purchase ? amount(c.unitPriceCharger) : null,
-    purchasePayment: purchase ? c.purchasePayment : null,
-    purchaseBillingMonth: purchase ? month(c.purchaseBillingMonth) : null,
-    installmentMonths: installment ? Number(c.installmentMonths) : null,
-    managementFee: fee && fee > 0 ? fee : null,
-    managementFeeStart: fee && fee > 0 ? month(c.managementFeeStart) : null,
-    memo: text(c.memo),
-  };
-}
 
 const CONTRACT_LABELS: Partial<Record<keyof ContractInput, string>> = {
   contractDate: "계약일",
@@ -126,7 +93,7 @@ function contractShow(k: keyof ContractInput, v: unknown): string {
 }
 
 // 계약 금액 한 줄 요약 (히스토리)
-function pricingText(d: ReturnType<typeof contractData>) {
+function pricingText(d: ReturnType<typeof contractDataOf>) {
   const p = contractPricingOf(d);
   const parts = contractLines(p).map((l) => `${l.label} ${formatWon(l.amount)}원${l.type === "MONTHLY" ? "/월" : ""}`);
   return `${CONTRACT_TYPE_LABEL[d.contractType]} · ${parts.join(" · ")}`;
@@ -139,7 +106,7 @@ export async function createContract(customerId: string, input: ContractInput): 
   const current = await prisma.contract.findFirst({ where: { customerId, state: "CURRENT" }, select: { id: true } });
   if (current) return { ok: false, message: "현재 계약이 이미 있습니다. 새로고침하세요." };
 
-  const d = contractData(input);
+  const d = contractDataOf(input);
   const qty = [["허브", d.qtyHub], ["밴드", d.qtyBand], ["충전기", d.qtyCharger]]
     .filter(([, q]) => Number(q) > 0)
     .map(([l, q]) => `${l} ${q}`)
@@ -164,13 +131,13 @@ export async function updateContract(contractId: string, version: number, input:
   const errors = validateContract(input);
   if (Object.keys(errors).length) return { ok: false, errors, message: CHECK };
 
-  const changes = diff(contractInputOf(current), contractInputOf({ ...current, ...contractData(input) }), CONTRACT_LABELS, contractShow);
+  const changes = diff(contractInputOf(current), contractInputOf({ ...current, ...contractDataOf(input) }), CONTRACT_LABELS, contractShow);
   if (!changes.length) return { ok: true };
 
   try {
     await prisma.$transaction(async (tx) => {
       await saveWithVersion(() =>
-        tx.contract.updateMany({ where: { id: contractId, version }, data: { ...contractData(input), version: { increment: 1 } } }),
+        tx.contract.updateMany({ where: { id: contractId, version }, data: { ...contractDataOf(input), version: { increment: 1 } } }),
       );
       await recordHistory(tx, {
         customerId: current.customerId,

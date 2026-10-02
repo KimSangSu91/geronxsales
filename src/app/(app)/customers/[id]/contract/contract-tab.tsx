@@ -18,6 +18,7 @@ import {
   type OptionInput,
 } from "@/lib/contract-input";
 import { lineDateText, type CostLine } from "@/lib/billing";
+import type { BadgeKind } from "@/lib/renewal";
 import { dDayLabel, formatDate } from "@/lib/date";
 import {
   CHARGE_TYPE_LABEL,
@@ -185,11 +186,17 @@ export function ContractTab({
   status,
   data,
   today,
+  renewalBadge,
+  trialBadge,
+  openDialog,
 }: {
   customerId: string;
   status: string;
   data: ContractTabData;
   today: string;
+  renewalBadge: BadgeKind | null;
+  trialBadge: BadgeKind | null;
+  openDialog?: "renewal" | "trial";
 }) {
   const contract = data.current;
 
@@ -261,7 +268,14 @@ export function ContractTab({
   return (
     <div className="flex flex-col gap-4">
       {status === "TRIAL" && data.trial && <TrialCard trial={data.trial} today={today} />}
-      <ContractCard customerId={customerId} contract={contract} excelNote={data.excelNote} today={today} />
+      <ContractCard
+        customerId={customerId}
+        contract={contract}
+        excelNote={data.excelNote}
+        today={today}
+        badge={renewalBadge}
+        openRenewal={openDialog === "renewal"}
+      />
 
       {/* 옵션상품 */}
       <CostTable
