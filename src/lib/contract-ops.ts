@@ -4,7 +4,7 @@ import { createClosure } from "@/lib/closure";
 import { formatDate, fromDbDate, toDbDate } from "@/lib/date";
 import { recordHistory } from "@/lib/history";
 import { CUSTOMER_STATUS_LABEL } from "@/lib/labels";
-import { contractMonths, renewalPeriod } from "@/lib/renewal";
+import { contractMonths } from "@/lib/renewal";
 
 type Tx = Prisma.TransactionClient;
 
@@ -15,77 +15,9 @@ export class ContractStateChanged extends Error {
   }
 }
 
-// 갱신 기간 기본값: 계약의 자동연장 기간, 없으면 이전 계약과 같은 길이
-export function defaultRenewalPeriod(prev: { startDate: Date; endDate: Date; autoRenewMonths: number | null }) {
-  const start = fromDbDate(prev.startDate);
-  const end = fromDbDate(prev.endDate);
-  return renewalPeriod(end, prev.autoRenewMonths ?? contractMonths(start, end));
-}
-
-/**
- * 새 계약(갱신) 만들기 — 이전 계약은 '이전 계약'(PAST)으로
- * - 동일 조건: 유형·수량·단가·납부·관리비·자동연장 설정을 옮김. 가입비·일시 비용은 옮기지 않음(한 번만 받는 돈)
- *   구축 장비 일시납은 청구월이 지난 달로 남아 다시 청구되지 않고, 분납은 남은 회차만 이어짐 (lib/billing.ts는 절대 월 기준)
- * - 변경 있음: data로 받은 값 사용
- * - 직접 추가한 월 비용은 새 계약으로 복사
- */
-export async function createRenewal(
-  tx: Tx,
-  prevId: string,
-  opts: {
-    origin: "RENEWAL" | "AUTO_RENEWAL";
-    period: { startDate: string; endDate: string };
-    data?: Omit<Prisma.ContractUncheckedCreateInput, "customerId" | "contractDate" | "startDate" | "endDate">; // 변경 있음
-    contractDate: string;
-  },
-) {
-  const prev = await tx.contract.findUniqueOrThrow({ where: { id: prevId }, include: { charges: true } });
-  const { count } = await tx.contract.updateMany({
-    where: { id: prevId, state: "CURRENT" },
-    data: { state: "PAST", version: { increment: 1 } },
-  });
-  if (count === 0) throw new ContractStateChanged();
-
-  const same = {
-    contractUsers: prev.contractUsers,
-    autoRenew: prev.autoRenew,
-    autoRenewMonths: prev.autoRenewMonths,
-    qtyHub: prev.qtyHub,
-    qtyBand: prev.qtyBand,
-    qtyCharger: prev.qtyCharger,
-    contractType: prev.contractType,
-    unitPriceHub: prev.unitPriceHub,
-    unitPriceBand: prev.unitPriceBand,
-    unitPriceCharger: prev.unitPriceCharger,
-    purchasePayment: prev.purchasePayment,
-    purchaseBillingMonth: prev.purchaseBillingMonth,
-    installmentMonths: prev.installmentMonths,
-    managementFee: prev.managementFee,
-    managementFeeStart: prev.managementFeeStart,
-    joinFee: null,
-  };
-  const next = await tx.contract.create({
-    data: {
-      ...(opts.data ?? same),
-      customerId: prev.customerId,
-      state: "CURRENT",
-      origin: opts.origin,
-      previousId: prev.id,
-      contractDate: toDbDate(opts.contractDate),
-      startDate: toDbDate(opts.period.startDate),
-      endDate: toDbDate(opts.period.endDate),
-      renewalCancelled: false,
-      renewalCancelReason: null,
-      autoRenewConfirmedAt: null,
-    },
-  });
-  const monthly = prev.charges.filter((c) => c.type === "MONTHLY");
-  if (monthly.length) {
-    await tx.contractCharge.createMany({
-      data: monthly.map((c) => ({ contractId: next.id, type: c.type, name: c.name, amount: c.amount, isFree: c.isFree, freeReason: c.freeReason })),
-    });
-  }
-  return next;
+// 연장 기간(개월): 계약의 자동연장 기간, 없으면 계약 기간과 같은 길이
+export function renewMonths(c: { startDate: Date; endDate: Date; autoRenewMonths: number | null }) {
+  return c.autoRenewMonths ?? contractMonths(fromDbDate(c.startDate), fromDbDate(c.endDate));
 }
 
 /**

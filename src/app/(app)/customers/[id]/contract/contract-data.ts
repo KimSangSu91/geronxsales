@@ -31,6 +31,13 @@ export async function getContractTabData(customerId: string, status: string): Pr
       select: { content: true },
     }),
   ]);
+  const renewedHistory = await prisma.history.findFirst({
+    where: { customerId, event: "contract_renewed" },
+    orderBy: { createdAt: "desc" },
+    select: { data: true },
+  });
+  const rd = renewedHistory?.data as { before?: string; after?: string } | null | undefined;
+  const lastRenewal = rd?.before && rd?.after ? { before: rd.before, after: rd.after } : null;
 
   const view = (c: (typeof contracts)[number]): ContractView => ({
     id: c.id,
@@ -40,7 +47,14 @@ export async function getContractTabData(customerId: string, status: string): Pr
     input: contractInputOf(c),
     charges: c.charges.map((x) => ({ id: x.id, version: x.version, input: chargeInputOf(x) })),
     contractDoc: c.documents[0] ?? null,
-    renewal: { cancelled: c.renewalCancelled, cancelReason: c.renewalCancelReason, autoRenewConfirmed: !!c.autoRenewConfirmedAt },
+    renewal: {
+      cancelled: c.renewalCancelled,
+      cancelReason: c.renewalCancelReason,
+      autoRenewedFrom: c.autoRenewedFrom ? fromDbDate(c.autoRenewedFrom) : null,
+      // 직전 갱신이 지금 종료일을 만든 것이면 그 전 종료일로 되돌릴 수 있게
+      lastRenewedFrom:
+        c.state === "CURRENT" && lastRenewal && lastRenewal.after === fromDbDate(c.endDate) ? lastRenewal.before : null,
+    },
   });
   const current = contracts.find((c) => c.state === "CURRENT");
   // 비용 항목 표: 계약 금액·옵션상품·추가 기기·직접 추가 비용을 한 표로 정리

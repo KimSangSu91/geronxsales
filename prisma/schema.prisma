@@ -391,7 +391,9 @@ model Contract {
   // 갱신 처리
   renewalCancelled      Boolean   @default(false) // 갱신 취소됨
   renewalCancelReason   String?
-  autoRenewConfirmedAt  DateTime? // origin=AUTO_RENEWAL 승인 시각 (null이면 미승인 배지)
+  autoRenewConfirmedAt  DateTime? // 자동연장 승인 시각
+  autoRenewedFrom       DateTime? @db.Date // 자동연장 전 종료일 — 값이 있으면 '자동연장 미승인' 배지, [계약 종료로 변경] 시 이 날짜로 되돌려 종료
+  // 갱신은 새 계약을 만들지 않고 종료일을 연장 (2026-10-02) — previousId·PAST는 이전 데이터 호환용
 
   memo      String?
   version   Int      @default(1)

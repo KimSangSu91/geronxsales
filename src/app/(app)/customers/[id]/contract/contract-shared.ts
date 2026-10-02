@@ -140,7 +140,12 @@ export type ContractView = {
   input: ContractInput;
   charges: Row<ChargeInput>[];
   contractDoc: { id: string; fileName: string } | null; // 이 계약의 계약서 (문서 탭에서 업로드)
-  renewal: { cancelled: boolean; cancelReason: string | null; autoRenewConfirmed: boolean };
+  renewal: {
+    cancelled: boolean;
+    cancelReason: string | null;
+    autoRenewedFrom: string | null; // 자동연장 전 종료일 (미승인)
+    lastRenewedFrom: string | null; // 직전 갱신 전 종료일 (되돌리기용, 히스토리 기준)
+  };
 };
 
 export type ContractTabData = {

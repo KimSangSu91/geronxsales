@@ -19,8 +19,7 @@ export const DEFAULT_TRIAL_END_DAYS = 7;
 export type RenewalFacts = {
   endDate: string; // 'YYYY-MM-DD'
   renewalCancelled: boolean;
-  origin: "NEW" | "RENEWAL" | "AUTO_RENEWAL" | "MIGRATION";
-  autoRenewConfirmed: boolean;
+  autoRenewPending: boolean; // 시스템이 자동연장했고 아직 승인 전
 };
 
 // 현재 계약의 갱신 배지
@@ -31,7 +30,7 @@ export function renewalBadge(
   renewalDays = DEFAULT_RENEWAL_DAYS,
 ): BadgeKind | null {
   if (!contract || status !== "ACTIVE") return null;
-  if (contract.origin === "AUTO_RENEWAL" && !contract.autoRenewConfirmed) return "AUTO_RENEW_UNCONFIRMED";
+  if (contract.autoRenewPending) return "AUTO_RENEW_UNCONFIRMED";
   if (contract.renewalCancelled) return "RENEWAL_CANCELLED";
   if (contract.endDate <= addDays(today, renewalDays)) return "RENEWAL_DUE";
   return null;
@@ -50,13 +49,13 @@ export function trialBadge(
   return null;
 }
 
-// 갱신 기간: 이전 계약 종료일 다음 날부터 연장 기간(개월)만큼 (시작일 포함)
-export function renewalPeriod(prevEndDate: string, months: number) {
-  const startDate = addDays(prevEndDate, 1);
-  return { startDate, endDate: addDays(addMonths(startDate, months), -1) };
+// 갱신 = 종료일 연장 (새 계약을 만들지 않음): 현재 종료일 기준 n개월 뒤
+// 예) 12/31 + 1년 → 다음 해 12/31, 5/27 + 1년 → 다음 해 5/27 (말일 보정)
+export function extendEnd(endDate: string, months: number): string {
+  return addDays(addMonths(addDays(endDate, 1), months), -1);
 }
 
-// 연장 기간이 없으면(자동연장 N 등) 이전 계약과 같은 길이(개월)로
+// 연장 기간이 없으면(자동연장 N 등) 계약 기간과 같은 길이(개월)로
 export function contractMonths(startDate: string, endDate: string): number {
   const [sy, sm] = startDate.split("-").map(Number);
   const [ey, em] = addDays(endDate, 1).split("-").map(Number);

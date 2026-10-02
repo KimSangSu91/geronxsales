@@ -41,8 +41,7 @@ export async function getCustomerDetail(id: string) {
       ? {
           endDate: fromDbDate(contract.endDate),
           renewalCancelled: contract.renewalCancelled,
-          origin: contract.origin,
-          autoRenewConfirmed: !!contract.autoRenewConfirmedAt,
+          autoRenewPending: !!contract.autoRenewedFrom,
         }
       : null,
     openClosure: c.closures.length

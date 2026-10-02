@@ -122,8 +122,7 @@ export async function getCustomerList(p: ListParams) {
             ? {
                 endDate: fromDbDate(contract.endDate),
                 renewalCancelled: contract.renewalCancelled,
-                origin: contract.origin,
-                autoRenewConfirmed: !!contract.autoRenewConfirmedAt,
+                autoRenewPending: !!contract.autoRenewedFrom,
               }
             : null,
           today,
