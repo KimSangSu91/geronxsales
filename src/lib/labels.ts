@@ -1,5 +1,7 @@
 // 화면 표시용 한국어 이름 (enum 값 → 라벨)
 import type {
+  AccountStatus,
+  AccountType,
   ContactRole,
   CustomerStatus,
   FacilityType,
@@ -49,4 +51,16 @@ export const PAYMENT_METHOD_LABEL: Record<PaymentMethod, string> = {
   CMS: "CMS",
   CARD: "카드",
   OTHER: "기타",
+};
+
+export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = {
+  ADMIN: "관리자",
+  NURSE: "간호",
+  CAREGIVER: "요양보호사",
+  OTHER: "기타",
+};
+
+export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
+  IN_USE: "사용",
+  INACTIVE: "비활성",
 };

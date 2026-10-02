@@ -1,38 +1,200 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronDown, ExternalLink, TriangleAlert } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
 import { CustomerStatusBadge } from "@/components/customer-status-badge";
+import { UnsavedChangesProvider } from "@/components/unsaved-changes";
+import type { CustomerStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
+import { todayKst } from "@/lib/date";
+import { FACILITY_TYPE_LABEL, INBOUND_CHANNEL_LABEL } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/utils";
+import { getCustomerDetail } from "./detail-data";
+import { BasicInfoTab } from "./info/basic-info-tab";
+import { SECTION_KEYS, type SectionKey } from "./info/sections";
+import { SummaryCards } from "./summary-cards";
 
-// 임시 상세 화면 — 다음 작업(고객사 상세)에서 교체
-export default async function CustomerDetailPage({ params }: PageProps<"/customers/[id]">) {
+const TABS = [
+  { key: "info", label: "기본정보" },
+  { key: "contract", label: "계약·비용" },
+  { key: "billing", label: "청구" },
+  { key: "checklist", label: "체크리스트" },
+  { key: "documents", label: "문서" },
+  { key: "devices", label: "장비" },
+  { key: "history", label: "히스토리" },
+] as const;
+type TabKey = (typeof TABS)[number]["key"];
+
+// 아직 만들지 않은 탭과 구현 단계
+const NOT_READY: Partial<Record<TabKey, string>> = {
+  contract: "2단계",
+  billing: "3단계",
+  checklist: "1단계 체크리스트 작업",
+  documents: "2단계",
+  devices: "2단계",
+  history: "1단계 히스토리 작업",
+};
+
+// 처음 열리는 탭 (화면정의서 3-5) — 아직 없는 탭이면 기본정보
+function defaultTab(status: CustomerStatus): TabKey {
+  const preferred: TabKey =
+    status === "ONBOARDING" ? "checklist" : status === "TRIAL" || status === "ACTIVE" ? "contract" : "info";
+  return NOT_READY[preferred] ? "info" : preferred;
+}
+
+export default async function CustomerDetailPage({ params, searchParams }: PageProps<"/customers/[id]">) {
   await requireUser();
   const { id } = await params;
-  const customer = await prisma.customer.findUnique({
-    where: { id },
-    select: { name: true, code: true, status: true, _count: { select: { contacts: true, checklist: true } } },
-  });
-  if (!customer) notFound();
+  const sp = await searchParams;
+  const [detail, owners] = await Promise.all([
+    getCustomerDetail(id),
+    prisma.user.findMany({ select: { id: true, name: true, isActive: true }, orderBy: { name: "asc" } }),
+  ]);
+  if (!detail) notFound();
+  const c = detail.customer;
+
+  const tabParam = typeof sp.tab === "string" ? sp.tab : undefined;
+  const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : defaultTab(c.status);
+  const editParam = typeof sp.edit === "string" ? sp.edit : undefined;
+  const editSection = SECTION_KEYS.includes(editParam as SectionKey) ? (editParam as SectionKey) : undefined;
+
+  const base = `/customers/${c.id}`;
+  const serviceUrl = c.serviceUrl && /^https?:\/\//i.test(c.serviceUrl) ? c.serviceUrl : null;
+  const primaryContact = c.contacts.find((x) => x.isPrimary) ?? c.contacts[0] ?? null;
+  const primaryAccount = c.accounts.find((a) => a.isPrimary) ?? null;
+
+  // 안내 배너 (화면정의서 3-3) — 나머지 배너는 해당 기능 구현 시 추가
+  const banners: { tone: "warn"; text: string; action?: { label: string; href: string } }[] = [];
+  if (!c.owner.isActive) {
+    banners.push({
+      tone: "warn",
+      text: "내부 담당자가 비활성 상태입니다. 담당자를 재배정하세요.",
+      action: { label: "재배정", href: `${base}?tab=info&edit=basic` },
+    });
+  }
 
   return (
-    <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">
-        <Link href="/customers" className="hover:text-foreground">
-          고객사
-        </Link>{" "}
-        › {customer.name}
-      </p>
-      <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">{customer.name}</h1>
-        {customer.code && <span className="text-muted-foreground">{customer.code}</span>}
-        <CustomerStatusBadge status={customer.status} />
-      </div>
-      <div className="flex h-60 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-sm text-muted-foreground">
-        <p>상세 화면은 다음 작업에서 구현합니다</p>
-        <p>
-          시설 담당자 {customer._count.contacts}명 · 체크리스트 {customer._count.checklist}개
+    <UnsavedChangesProvider>
+      <div className="flex flex-col gap-5">
+        {/* 브레드크럼 */}
+        <p className="text-sm text-muted-foreground">
+          <Link href="/customers" className="hover:text-foreground">
+            고객사
+          </Link>{" "}
+          › {c.name}
         </p>
+
+        {/* ① 헤더 */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-baseline gap-2">
+              <h1 className="text-xl font-semibold">{c.name}</h1>
+              {c.code && <span className="text-muted-foreground">{c.code}</span>}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                {c.facilityType === "OTHER" && c.facilityTypeOther
+                  ? c.facilityTypeOther
+                  : FACILITY_TYPE_LABEL[c.facilityType]}{" "}
+                · {c.region}
+              </span>
+              {/* 상태 변경 모달은 1단계 상태 변경 작업에서 연결 */}
+              <button
+                type="button"
+                disabled
+                title="상태 변경은 다음 작업에서 구현"
+                className="inline-flex items-center gap-0.5 disabled:cursor-default"
+              >
+                <CustomerStatusBadge status={c.status} />
+                <ChevronDown className="size-3.5 opacity-40" />
+              </button>
+            </div>
+          </div>
+          {serviceUrl ? (
+            <a
+              href={serviceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonVariants({ variant: "outline", className: "h-9" })}
+            >
+              서비스 페이지 이동
+              <ExternalLink />
+            </a>
+          ) : (
+            <span
+              title="기본정보에서 URL을 등록하세요"
+              className={buttonVariants({ variant: "outline", className: "h-9 cursor-not-allowed opacity-50" })}
+            >
+              서비스 페이지 이동
+              <ExternalLink />
+            </span>
+          )}
+        </div>
+
+        {/* ② 안내 배너 */}
+        {banners.map((b) => (
+          <div
+            key={b.text}
+            className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-900"
+          >
+            <TriangleAlert className="size-4 shrink-0" />
+            <span className="flex-1">{b.text}</span>
+            {b.action && (
+              <Link href={b.action.href} className="font-medium underline underline-offset-4">
+                {b.action.label}
+              </Link>
+            )}
+          </div>
+        ))}
+
+        {/* ③ 요약 카드 */}
+        <SummaryCards
+          accountsHref={`${base}?tab=info#section-accounts`}
+          data={{
+            earlyStage: c.status === "PENDING" || c.status === "NOT_CONVERTED",
+            primaryContact: primaryContact && {
+              name: primaryContact.name,
+              role: primaryContact.role,
+              phone: primaryContact.phone,
+            },
+            owner: { name: c.owner.name, isActive: c.owner.isActive },
+            contract: detail.contract,
+            monthly: detail.monthly,
+            inboundChannel: c.inboundChannel ? INBOUND_CHANNEL_LABEL[c.inboundChannel] : null,
+            lastActivity: detail.lastActivity,
+            primaryAccount: primaryAccount?.loginId ?? null,
+            inUseAccounts: c.accounts.filter((a) => a.status === "IN_USE").length,
+            today: todayKst(),
+          }}
+        />
+
+        {/* ④ 탭 */}
+        <nav className="flex flex-wrap gap-x-1 border-b">
+          {TABS.map((t) => (
+            <Link
+              key={t.key}
+              href={`${base}?tab=${t.key}`}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2 text-sm whitespace-nowrap",
+                tab === t.key
+                  ? "border-foreground font-medium text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </nav>
+
+        {tab === "info" ? (
+          <BasicInfoTab detail={detail} owners={owners} editSection={editSection} />
+        ) : (
+          <div className="flex h-60 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+            준비 중입니다 · {NOT_READY[tab]}에서 구현
+          </div>
+        )}
       </div>
-    </div>
+    </UnsavedChangesProvider>
   );
 }

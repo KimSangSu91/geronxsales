@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
+import { monthlyTotal } from "@/lib/billing";
 import { prisma } from "@/lib/prisma";
 import { fromDbDate, kstStartOfDay, toDbDate, addDays } from "@/lib/date";
 import { CUSTOMER_STATUSES } from "@/lib/labels";
@@ -97,10 +98,7 @@ export async function getCustomerList(p: ListParams) {
   // 계산 컬럼: 계약 종료일, 월 비용(현재 계약 월 비용 + 월 옵션상품, 공급가)
   const rows = customers.map((c) => {
     const contract = c.contracts[0];
-    const hasMonthly = !!contract?.charges.length || c.options.length > 0;
-    const monthly = hasMonthly
-      ? [...(contract?.charges ?? []), ...c.options].reduce((sum, x) => sum + x.amount, 0)
-      : null;
+    const monthly = monthlyTotal(contract?.charges ?? [], c.options);
     return {
       id: c.id,
       no: c.no,

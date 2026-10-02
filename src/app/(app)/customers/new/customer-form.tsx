@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronDown, Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Field, selectClass, textareaClass } from "@/components/form";
 import {
   Dialog,
   DialogContent,
@@ -67,36 +68,6 @@ const SECTION_FIELDS: Record<string, string[]> = {
   install: ["floors", "rooms", "wifiSsid", "wifiPassword", "networkMemo"],
   service: ["serviceUrl"],
 };
-
-const selectClass =
-  "h-8 w-full rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
-
-function Field({
-  label,
-  required,
-  error,
-  hint,
-  className,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  error?: string;
-  hint?: React.ReactNode;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={cn("flex flex-col gap-1.5", className)}>
-      <span className="text-sm font-medium">
-        {label}
-        {required && <span className="ml-0.5 text-destructive">*</span>}
-      </span>
-      {children}
-      {error ? <span className="text-xs text-destructive">{error}</span> : hint}
-    </label>
-  );
-}
 
 function Section({
   title,
@@ -368,7 +339,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
               value={input.memo}
               onChange={(e) => set("memo", e.target.value)}
               rows={3}
-              className="w-full rounded-lg border border-input bg-transparent px-2.5 py-1.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className={textareaClass}
             />
           </Field>
         </div>

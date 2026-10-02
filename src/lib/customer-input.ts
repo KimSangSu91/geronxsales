@@ -6,7 +6,7 @@ import {
   INBOUND_CHANNEL_LABEL,
   PAYMENT_METHOD_LABEL,
 } from "@/lib/labels";
-import { missingForRegistration } from "@/lib/status-rules";
+import { missingContactFields, missingCustomerFields, missingForRegistration } from "@/lib/status-rules";
 
 export type ContactInput = {
   name: string;
@@ -93,39 +93,60 @@ const isInt = (v: string, min: number, max: number) => {
   return /^\d+$/.test(v.trim()) && n >= min && n <= max;
 };
 
-export function validateCustomerInput(input: CustomerInput): FieldErrors {
+const notIn = (labels: object, v: string | undefined) => !!v && !Object.hasOwn(labels, v);
+
+// 고객사 필드 검사 — values에 들어 있는 항목만 검사 (등록: 전체 / 상세 수정: 해당 섹션만)
+export function validateCustomerFields(values: Partial<Record<string, string>>): FieldErrors {
   const errors: FieldErrors = {};
+  const v = (k: string) => (values[k] ?? "").trim();
 
   // 필수 항목 (lib/status-rules.ts)
-  for (const m of missingForRegistration(input)) errors[m.field] = `${m.label}을(를) 입력하세요.`;
+  for (const m of missingCustomerFields(values)) errors[m.field] = `${m.label}을(를) 입력하세요.`;
 
   // 선택지 값 (목록에 없는 값 차단)
-  const notIn = (labels: object, v: string) => v !== "" && !Object.hasOwn(labels, v);
-  if (notIn(FACILITY_TYPE_LABEL, input.facilityType)) errors.facilityType = "시설 유형을 다시 선택하세요.";
-  if (notIn(INBOUND_CHANNEL_LABEL, input.inboundChannel)) errors.inboundChannel = "유입 채널을 다시 선택하세요.";
-  if (notIn(PAYMENT_METHOD_LABEL, input.paymentMethod)) errors.paymentMethod = "결제 수단을 다시 선택하세요.";
-  if (!["", "yes", "no"].includes(input.taxInvoice)) errors.taxInvoice = "다시 선택하세요.";
+  if (notIn(FACILITY_TYPE_LABEL, values.facilityType)) errors.facilityType = "시설 유형을 다시 선택하세요.";
+  if (notIn(INBOUND_CHANNEL_LABEL, values.inboundChannel)) errors.inboundChannel = "유입 채널을 다시 선택하세요.";
+  if (notIn(PAYMENT_METHOD_LABEL, values.paymentMethod)) errors.paymentMethod = "결제 수단을 다시 선택하세요.";
+  for (const k of ["taxInvoice", "cmsEnabled"]) {
+    if (k in values && !["", "yes", "no"].includes(values[k] ?? "")) errors[k] = "다시 선택하세요.";
+  }
 
   // 형식
-  const code = input.code.trim();
-  if (code && !CODE_RE.test(code)) errors.code = "영문 소문자와 숫자만 사용할 수 있습니다.";
-  if (input.capacity.trim() && !isInt(input.capacity, 0, 100000)) errors.capacity = "숫자만 입력하세요.";
-  if (input.billingDay.trim() && !isInt(input.billingDay, 1, 31)) errors.billingDay = "1~31 사이 숫자를 입력하세요.";
-  if (input.floors.trim() && !isInt(input.floors, 0, 1000)) errors.floors = "숫자만 입력하세요.";
-  if (input.rooms.trim() && !isInt(input.rooms, 0, 100000)) errors.rooms = "숫자만 입력하세요.";
-  if (input.taxInvoiceEmail.trim() && !EMAIL_RE.test(input.taxInvoiceEmail.trim()))
+  if (v("code") && !CODE_RE.test(v("code"))) errors.code = "영문 소문자와 숫자만 사용할 수 있습니다.";
+  if (v("capacity") && !isInt(v("capacity"), 0, 100000)) errors.capacity = "숫자만 입력하세요.";
+  if (v("billingDay") && !isInt(v("billingDay"), 1, 31)) errors.billingDay = "1~31 사이 숫자를 입력하세요.";
+  if (v("floors") && !isInt(v("floors"), 0, 1000)) errors.floors = "숫자만 입력하세요.";
+  if (v("rooms") && !isInt(v("rooms"), 0, 100000)) errors.rooms = "숫자만 입력하세요.";
+  if (v("taxInvoiceEmail") && !EMAIL_RE.test(v("taxInvoiceEmail")))
     errors.taxInvoiceEmail = "이메일 형식이 올바르지 않습니다.";
-  if (input.serviceUrl.trim() && !URL_RE.test(input.serviceUrl.trim()))
+  if (v("serviceUrl") && !URL_RE.test(v("serviceUrl")))
     errors.serviceUrl = "http:// 또는 https:// 로 시작하는 주소를 입력하세요.";
 
-  input.contacts.forEach((c, i) => {
+  return errors;
+}
+
+// 시설 담당자 1명 검사 (등록 폼의 담당자·상세의 담당자 추가/수정 공용)
+export function validateContact(c: Omit<ContactInput, "isPrimary">, required: boolean): FieldErrors {
+  const errors: FieldErrors = {};
+  if (required) for (const m of missingContactFields(c)) errors[m.field] = `${m.label}을(를) 입력하세요.`;
+  else if (!c.name.trim()) errors.name = "이름을 입력하세요.";
+  if (notIn(CONTACT_ROLE_LABEL, c.role)) errors.role = "역할을 다시 선택하세요.";
+  if (c.phone.trim() && c.phone.replace(/D/g, "").length < 8) errors.phone = "연락처를 확인하세요.";
+  if (c.email.trim() && !EMAIL_RE.test(c.email.trim())) errors.email = "이메일 형식이 올바르지 않습니다.";
+  return errors;
+}
+
+export function validateCustomerInput(input: CustomerInput): FieldErrors {
+  const { contacts, ...fields } = input;
+  const errors = validateCustomerFields(fields);
+
+  // 시설 담당자 1명 이상 (lib/status-rules.ts)
+  for (const m of missingForRegistration(input)) if (m.field === "contacts") errors.contacts = `${m.label}을(를) 입력하세요.`;
+
+  contacts.forEach((c, i) => {
     const filled = [c.name, c.phone, c.title, c.email, c.memo].some((v) => v.trim()) || c.role;
     if (!filled) return;
-    if (notIn(CONTACT_ROLE_LABEL, c.role)) errors[`contacts.${i}.role`] = "역할을 다시 선택하세요.";
-    if (!c.name.trim()) errors[`contacts.${i}.name`] = "이름을 입력하세요.";
-    if (c.phone.trim() && c.phone.replace(/\D/g, "").length < 8)
-      errors[`contacts.${i}.phone`] = "연락처를 확인하세요.";
-    if (c.email.trim() && !EMAIL_RE.test(c.email.trim())) errors[`contacts.${i}.email`] = "이메일 형식이 올바르지 않습니다.";
+    for (const [k, msg] of Object.entries(validateContact(c, false))) errors[`contacts.${i}.${k}`] = msg;
   });
 
   return errors;
