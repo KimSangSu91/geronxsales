@@ -317,9 +317,6 @@ function RecoveryPanel({ closure, today }: { closure: ClosureView; today: string
           회수 내역 저장
         </Button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
-        회수일을 입력하고, 덜 회수된 기기에 미회수 사유를 넣어야 &apos;장비 회수&apos;를 완료 체크할 수 있습니다.
-      </p>
     </div>
   );
 }

@@ -161,7 +161,7 @@ export function ContractSummary({ contract, today }: { contract: ContractView; t
         {c.joinFee ? (
           <>
             <Won v={price(c.joinFee)} />
-            <span className="ml-2 text-muted-foreground">1회 · 청구 {c.startDate.slice(0, 7).replace("-", ".")} (계약 시작월)</span>
+            <span className="ml-2 text-muted-foreground">1회 · 청구 {c.startDate.slice(0, 7).replace("-", ".")}</span>
           </>
         ) : (
           <span className="text-muted-foreground">없음</span>
@@ -235,7 +235,6 @@ export function ContractForm({
         <Field
           label="비용 청구일 (매월)"
           error={errors.billingDay}
-          hint={<span className="text-xs text-muted-foreground">기본정보 정산 정보의 청구일과 같은 값</span>}
         >
           <div className="flex items-center gap-1.5">
             <Input inputMode="numeric" value={form.billingDay} onChange={(e) => set({ billingDay: e.target.value })} placeholder="1~31" aria-invalid={!!errors.billingDay} />
@@ -324,7 +323,7 @@ export function ContractForm({
                   {purchase || q === "qtyBand" ? (
                     <MoneyInput value={form[p]} onChange={(v) => set({ [p]: v })} invalid={!!errors[p]} />
                   ) : (
-                    <span className="text-xs text-muted-foreground">구독형은 밴드만 과금</span>
+                    <span className="text-muted-foreground">-</span>
                   )}
                 </td>
               </tr>
@@ -380,7 +379,6 @@ export function ContractForm({
         ) : (
           <p className="border-t pt-3 text-sm">
             월 구독료 <Won v={a.subscription} suffix=" /월" />
-            <span className="ml-1 text-xs text-muted-foreground">(밴드 수 × 밴드 월 단가, 계약 기간 동안 매월)</span>
           </p>
         )}
       </div>
@@ -390,12 +388,11 @@ export function ContractForm({
         <Field
           label="가입비 (선택)"
           error={errors.joinFee}
-          hint={<span className="text-xs text-muted-foreground">1회성 · 계약 시작월(첫 달)에만 청구</span>}
         >
           <MoneyInput value={form.joinFee} onChange={(v) => set({ joinFee: v })} invalid={!!errors.joinFee} />
         </Field>
         <div />
-        <Field label="월 관리비 (선택)" error={errors.managementFee} hint={<span className="text-xs text-muted-foreground">없으면 비워 두세요</span>}>
+        <Field label="월 관리비 (선택)" error={errors.managementFee}>
           <MoneyInput value={form.managementFee} onChange={(v) => set({ managementFee: v, managementFeeStart: form.managementFeeStart || startYm })} invalid={!!errors.managementFee} />
         </Field>
         <Field label="관리비 청구 시작월" required={price(form.managementFee) > 0} error={errors.managementFeeStart}>
@@ -423,14 +420,13 @@ export function ContractForm({
                   placeholder="n"
                   onChange={(e) => {
                     const m = Number(e.target.value);
-                    if (/^d+$/.test(e.target.value) && m <= 120) set({ managementFeeStart: addMonthsYm(startYm, m) });
+                    if (/^\d+$/.test(e.target.value) && m <= 120) set({ managementFeeStart: addMonthsYm(startYm, m) });
                   }}
                 />
                 개월 후
               </span>
             </div>
           )}
-          {!startYm && <span className="text-xs text-muted-foreground">계약 시작일을 먼저 고르면 빠른 선택 버튼이 나옵니다</span>}
         </Field>
       </div>
 

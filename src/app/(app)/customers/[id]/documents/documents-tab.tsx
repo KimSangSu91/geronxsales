@@ -106,7 +106,6 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
     <section className="rounded-lg border bg-background">
       <div className="flex items-center justify-between border-b px-5 py-3">
         <h3 className="font-semibold">문서</h3>
-        <span className="text-xs text-muted-foreground">PDF·이미지만 · 항목당 파일 1개 · 최대 20MB</span>
       </div>
       <div className="overflow-x-auto">
         {/* 열 폭 고정: 긴 파일명·서류명이 표를 밀어내지 않도록 (넘치면 … 처리, 마우스를 올리면 전체 이름) */}
@@ -188,8 +187,7 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t px-5 py-3">
-        <span className="text-xs text-muted-foreground">입소자 명단은 개인정보라 열람·다운로드할 때마다 히스토리에 기록됩니다.</span>
+      <div className="flex items-center justify-end border-t px-5 py-3">
         <Button variant="outline" size="sm" onClick={() => setAdding(true)} disabled={!!busy}>
           <Plus />
           자료 추가
@@ -226,7 +224,7 @@ export function DocumentsTab({ customerId, data }: { customerId: string; data: D
                 placeholder="예) 설치 사진, 견적서"
               />
             </Field>
-            <Field label="파일" required hint={<span className="text-xs text-muted-foreground">PDF·이미지 · 최대 20MB</span>}>
+            <Field label="파일" required>
               <input
                 type="file"
                 accept={ACCEPT_ATTR}

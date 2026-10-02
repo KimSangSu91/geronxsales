@@ -258,9 +258,7 @@ export function ContactsSection({ customerId, contacts }: { customerId: string; 
               />
               대표 담당자로 지정
               <span className="text-xs text-muted-foreground">
-                {mustBePrimary
-                  ? "대표 담당자는 1명 이상 필요해서 해제할 수 없습니다"
-                  : "실무·주 소통 담당자 (여러 명 지정 가능, 1명 이상 필수)"}
+                {mustBePrimary && "대표 담당자는 1명 이상 필요해서 해제할 수 없습니다"}
               </span>
             </label>
             {errors.isPrimary && <p className="text-xs text-destructive sm:col-span-2">{errors.isPrimary}</p>}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { syncAlertsIfStale } from "@/lib/alerts";
 import { requireUser } from "@/lib/auth";
+import { ensureMonthlyInvoicesIfStale } from "@/lib/invoice";
 import { prisma } from "@/lib/prisma";
 import { AlertBell } from "@/components/layout/alert-bell";
 import { NavMenu } from "@/components/layout/nav-menu";
@@ -10,6 +11,7 @@ import { UserMenu } from "@/components/layout/user-menu";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   // 새 알림 = 내가 마지막으로 🔔를 연 뒤 생긴 해제 안 된 알림 (사용자별)
+  await ensureMonthlyInvoicesIfStale();
   await syncAlertsIfStale();
   const hasNewAlert =
     (await prisma.alert.count({

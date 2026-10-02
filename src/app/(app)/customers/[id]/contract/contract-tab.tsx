@@ -371,9 +371,6 @@ export function ContractTab({
         addDisabledReason={contract ? undefined : "계약을 먼저 등록하세요"}
         footer={
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-muted-foreground">
-              계약 내용·옵션상품·추가 기기 금액은 자동으로 정리됩니다. 구축비·기타 장비비 등은 [추가]로 직접 넣으세요.
-            </span>
             <span className="flex items-center gap-2">
               <span className="text-muted-foreground">일시 비용 합계</span>
               <span className="font-semibold tabular-nums">{formatWon(data.oneTimeTotal)}원</span>

@@ -205,7 +205,7 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
   const cancel = () => (dirty ? setConfirmLeave(true) : router.push("/customers"));
 
   const codeHint: Record<CodeState, React.ReactNode> = {
-    idle: <span className="text-xs text-muted-foreground">영문 소문자·숫자. 도입준비·체험중 전환 시 필수</span>,
+    idle: null,
     checking: (
       <span className="flex items-center gap-1 text-xs text-muted-foreground">
         <Loader2 className="size-3 animate-spin" /> 확인 중…
@@ -520,7 +520,6 @@ export function CustomerForm({ owners, defaultOwnerId }: { owners: Owner[]; defa
           </Field>
           <Field
             label="와이파이 비밀번호"
-            hint={<span className="text-xs text-muted-foreground">암호화해서 저장합니다</span>}
           >
             <Input
               type="password"

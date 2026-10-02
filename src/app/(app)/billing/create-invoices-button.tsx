@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createMissingInvoices } from "./invoice-actions";
 
-// 이번 달 청구 건 만들기 — 매일 배치와 같은 처리(이미 있으면 건너뜀). 배포 전이나 배치가 돌지 않았을 때 사용
+// 이번 달 청구 건 수동 생성 — 자동 생성(매일 배치·화면 열 때)이 안 됐을 때 사용, 이미 있으면 건너뜀
 export function CreateInvoicesButton() {
   const [pending, startTransition] = useTransition();
   return (
@@ -14,7 +14,7 @@ export function CreateInvoicesButton() {
       variant="outline"
       size="sm"
       disabled={pending}
-      title="사용중 고객사 중 이번 달 청구 건이 없는 곳만 만듭니다 (매일 자동으로도 실행)"
+      title="사용중 고객사 중 이번 달 청구 건이 없는 곳만 만듭니다"
       onClick={() =>
         startTransition(async () => {
           const r = await createMissingInvoices();
@@ -23,7 +23,7 @@ export function CreateInvoicesButton() {
       }
     >
       {pending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-      이번 달 청구 건 만들기
+      청구 건 수동 생성
     </Button>
   );
 }

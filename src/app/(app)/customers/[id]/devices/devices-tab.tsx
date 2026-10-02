@@ -163,9 +163,6 @@ export function DevicesTab({ customerId, data, today }: { customerId: string; da
           <div className="flex flex-wrap items-center gap-2 border-t px-5 py-3">
             <div className="mr-auto flex flex-col text-xs">
               {pricePreview && <span className="font-medium text-orange-700">계약 금액이 바뀝니다: {pricePreview}</span>}
-              <span className="text-muted-foreground">
-                추가 제공은 계약·비용 탭 &gt; 추가 기기 제공에서 관리합니다.
-              </span>
               {message && <span className="text-destructive">{message}</span>}
             </div>
             <Button variant="outline" onClick={() => setEditing(false)} disabled={pending}>

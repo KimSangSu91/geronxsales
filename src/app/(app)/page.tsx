@@ -5,7 +5,7 @@ import { alertHref } from "@/lib/alert-info";
 import { loadOpenAlerts, syncAlertsIfStale } from "@/lib/alerts";
 import { requireUser } from "@/lib/auth";
 import { todayKst } from "@/lib/date";
-import { monthLines } from "@/lib/invoice";
+import { ensureMonthlyInvoicesIfStale, monthLines } from "@/lib/invoice";
 import { CUSTOMER_STATUSES, INVOICE_STATUS_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +35,7 @@ function Card({ title, action, children }: { title: string; action?: React.React
 // 대시보드 (기능정의서 4-12)
 export default async function DashboardPage() {
   await requireUser();
+  await ensureMonthlyInvoicesIfStale();
   await syncAlertsIfStale();
   const month = todayKst().slice(0, 7);
 
@@ -127,7 +128,7 @@ export default async function DashboardPage() {
             </table>
             {expected.some((x) => x.monthly + x.oneTime === 0) && (
               <p className="mt-1 text-xs text-muted-foreground">
-                이번 달 금액이 없는 사용중 고객사 {expected.filter((x) => x.monthly + x.oneTime === 0).length}곳 (계약 금액 미입력 등)
+                이번 달 금액이 없는 사용중 고객사 {expected.filter((x) => x.monthly + x.oneTime === 0).length}곳
               </p>
             )}
           </details>
@@ -154,7 +155,7 @@ export default async function DashboardPage() {
               </Link>
             ))}
           </div>
-          {invoices.length === 0 && <p className="mt-2 text-xs text-muted-foreground">이번 달 청구 건이 아직 없습니다 (청구 관리에서 만들 수 있음)</p>}
+          {invoices.length === 0 && <p className="mt-2 text-xs text-muted-foreground">이번 달 청구 건이 없습니다</p>}
         </Card>
       </div>
 

@@ -79,4 +79,20 @@ export async function ensureMonthlyInvoices(month = todayKst().slice(0, 7)) {
   return created;
 }
 
+// 화면을 열 때 호출 — 매일 배치와 별도로 이번 달 청구 건을 자동으로 맞춤 (1분 안에 이미 맞췄으면 건너뜀)
+// 진행 중인 실행이 있으면 그 결과를 같이 기다림 → 레이아웃·페이지가 동시에 불러도 한 번만 실행
+let lastEnsure = 0;
+let ensuring: Promise<unknown> | null = null;
+export function ensureMonthlyInvoicesIfStale() {
+  if (ensuring) return ensuring;
+  if (Date.now() - lastEnsure < 60_000) return Promise.resolve();
+  lastEnsure = Date.now();
+  ensuring = ensureMonthlyInvoices()
+    .catch((e) => console.error("청구 건 자동 생성 실패", e))
+    .finally(() => {
+      ensuring = null;
+    });
+  return ensuring;
+}
+
 export const nextMonth = (month: string) => addMonthsYm(month, 1);

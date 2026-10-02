@@ -1,13 +1,14 @@
 import Link from "next/link";
-import { Info } from "lucide-react";
 import { formatWon } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { ensureMonthlyInvoicesIfStale } from "@/lib/invoice";
 import { getInvoices } from "../../../billing/invoice-data";
 import { invoiceTotals } from "../../../billing/invoice-shared";
 import { InvoiceTable } from "../../../billing/invoice-table";
 
 // 고객사 상세 > 청구 탭 (화면정의서 4-3): 연도별 청구 건 + 누적 합계
 export async function BillingTab({ customerId, year, thisYear }: { customerId: string; year: number; thisYear: number }) {
+  await ensureMonthlyInvoicesIfStale();
   const rows = await getInvoices({ customerId, year });
   const t = invoiceTotals(rows);
   const base = `/customers/${customerId}?tab=billing`;
@@ -42,10 +43,6 @@ export async function BillingTab({ customerId, year, thisYear }: { customerId: s
           </span>
         </div>
       </div>
-      <p className="flex items-center gap-1.5 border-b px-5 py-2 text-xs text-muted-foreground">
-        <Info className="size-3.5" />
-        사용중 고객사는 매월 해당 월 청구 건이 &apos;청구 전&apos; 상태로 자동 생성됩니다. 세금계산서를 올리면 청구 완료 + 발행일 오늘로 바뀝니다.
-      </p>
       <InvoiceTable rows={rows} />
     </section>
   );

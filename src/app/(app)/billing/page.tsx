@@ -4,6 +4,7 @@ import type { InvoiceStatus } from "@/generated/prisma/enums";
 import { requireUser } from "@/lib/auth";
 import { addMonthsYm } from "@/lib/billing";
 import { todayKst } from "@/lib/date";
+import { ensureMonthlyInvoicesIfStale } from "@/lib/invoice";
 import { INVOICE_STATUS_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import { InvoiceTable } from "./invoice-table";
 // 청구 관리 (기능정의서 4-6): 월 선택 → 그 달 전체 고객사 청구 건
 export default async function BillingPage({ searchParams }: PageProps<"/billing">) {
   await requireUser();
+  await ensureMonthlyInvoicesIfStale();
   const sp = await searchParams;
   const thisMonth = todayKst().slice(0, 7);
   const month = typeof sp.month === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(sp.month) ? sp.month : thisMonth;

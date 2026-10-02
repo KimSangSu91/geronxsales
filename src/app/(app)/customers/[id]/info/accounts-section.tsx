@@ -271,7 +271,7 @@ export function AccountsSection({
                 aria-invalid={!!errors.loginId}
               />
             </Field>
-            <Field label="계정 유형" required error={errors.type ?? errors.typeOther} hint={<span className="text-xs text-muted-foreground">기록용 (권한 기능 없음)</span>}>
+            <Field label="계정 유형" required error={errors.type ?? errors.typeOther}>
               <div className="flex gap-2">
                 <select
                   className={selectClass}
@@ -296,7 +296,7 @@ export function AccountsSection({
                 )}
               </div>
             </Field>
-            <Field label="사용자" hint={<span className="text-xs text-muted-foreground">시설 담당자 중 선택 또는 직접 입력</span>}>
+            <Field label="사용자">
               <Input
                 list="contact-names"
                 value={form.userName}
@@ -325,7 +325,7 @@ export function AccountsSection({
               </select>
             </Field>
             {form.status === "INACTIVE" && (
-              <Field label="비활성일" error={errors.deactivatedOn} hint={<span className="text-xs text-muted-foreground">비우면 오늘 날짜</span>}>
+              <Field label="비활성일" error={errors.deactivatedOn}>
                 <DatePicker
                   value={form.deactivatedOn || undefined}
                   onChange={(v) => setForm({ ...form, deactivatedOn: v ?? "" })}
@@ -335,7 +335,6 @@ export function AccountsSection({
             <Field
               label="비밀번호"
               className="sm:col-span-2"
-              hint={<span className="text-xs text-muted-foreground">선택 입력 · 암호화해서 저장합니다</span>}
             >
               <Input
                 type="password"

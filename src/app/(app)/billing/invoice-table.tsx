@@ -14,7 +14,7 @@ import { Field, selectClass } from "@/components/form";
 import { MoneyInput } from "@/components/money-input";
 import type { InvoiceStatus } from "@/generated/prisma/enums";
 import { ACCEPT_ATTR, DOCUMENT_BUCKET, fileProblem } from "@/lib/document-rules";
-import { CHARGE_TYPE_LABEL, INVOICE_STATUS_LABEL, PROCESS_METHOD_LABEL } from "@/lib/labels";
+import { CHARGE_TYPE_LABEL, INVOICE_STATUS_LABEL } from "@/lib/labels";
 import { formatWon, withVat } from "@/lib/money";
 import { createClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
@@ -164,7 +164,6 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
                         </option>
                       ))}
                     </select>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{PROCESS_METHOD_LABEL[r.method]}</p>
                   </td>
                   <td className={td}>
                     {busy === r.id ? (
@@ -297,7 +296,7 @@ export function InvoiceTable({ rows, showCustomer }: { rows: InvoiceRow[]; showC
           <DialogHeader>
             <DialogTitle>{adjusting?.month.replace("-", ".")} 청구 금액 조정</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">예정 금액(생성 시점) {formatWon(adjusting?.planned ?? 0)}원 · 비우고 저장하면 조정 취소</p>
+          <p className="text-sm text-muted-foreground">예정 금액 {formatWon(adjusting?.planned ?? 0)}원</p>
           <Field label="조정 금액 (공급가)">
             <MoneyInput value={adjAmount} onChange={setAdjAmount} />
           </Field>

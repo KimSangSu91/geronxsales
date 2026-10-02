@@ -54,7 +54,7 @@ export function AlertBell({ hasNew }: { hasNew: boolean }) {
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>알림</DialogTitle>
-            <DialogDescription>{data ? `처리할 알림 ${data.alerts.length}건 · 심각도순` : "알림을 불러오는 중…"}</DialogDescription>
+            <DialogDescription>{data ? `처리할 알림 ${data.alerts.length}건` : "알림을 불러오는 중…"}</DialogDescription>
           </DialogHeader>
           <div className={cn("-mx-2 max-h-[60vh] overflow-y-auto", pending && !data && "flex justify-center py-8")}>
             {!data ? (

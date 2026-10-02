@@ -52,10 +52,7 @@ export function AlertSettingsForm({ items }: { items: Item[] }) {
           ))}
         </tbody>
       </table>
-      <div className="flex items-center justify-between border-t px-5 py-3">
-        <span className="text-xs text-muted-foreground">
-          도입 지연(설치 예정일 경과)·미납·자동연장 미승인·담당자 재배정은 일수 기준 없이 바로 알림
-        </span>
+      <div className="flex items-center justify-end border-t px-5 py-3">
         <Button
           disabled={!dirty || pending}
           onClick={() =>

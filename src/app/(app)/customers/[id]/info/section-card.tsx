@@ -194,9 +194,9 @@ export function SectionCard({
   };
 
   const codeHint = (() => {
-    if (codeLocked) return <span className="text-xs text-muted-foreground">입력 후 변경할 수 없습니다</span>;
+    if (codeLocked) return undefined;
     const c = (form.code ?? "").trim();
-    if (!c) return <span className="text-xs text-muted-foreground">영문 소문자·숫자. 저장 후에는 변경할 수 없습니다</span>;
+    if (!c) return undefined;
     if (!CODE_RE.test(c)) return <span className="text-xs text-destructive">영문 소문자와 숫자만 사용할 수 있습니다</span>;
     if (codeCheck?.code !== c) return <span className="text-xs text-muted-foreground">확인 중…</span>;
     return codeCheck.ok ? (
@@ -265,7 +265,7 @@ export function SectionCard({
                 label={f.label}
                 required={f.required}
                 error={errors[f.key]}
-                hint={f.kind === "code" ? codeHint : f.kind === "secret" ? <span className="text-xs text-muted-foreground">암호화해서 저장합니다</span> : undefined}
+                hint={f.kind === "code" ? codeHint : undefined}
                 className={cn(f.wide && "md:col-span-2")}
               >
                 {renderInput(f)}
